@@ -409,6 +409,8 @@ INDEX_TEMPLATE = """
     .admin-link { text-align: center; margin-top: 1rem; }
     .admin-link a { color: #2a9d8f; text-decoration: none; }
     .summary { margin-top: 1rem; line-height: 1.8; }
+    .summary-toggle-btn { width: 100%; padding: 0.75rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; background: #2a9d8f; color: #fff; margin-bottom: 1rem; }
+    .summary-toggle-btn:hover { background: #238a7d; }
     ul { padding-right: 1.25rem; }
   </style>
 </head>
@@ -420,7 +422,7 @@ INDEX_TEMPLATE = """
   <main>
     {% if history %}
     <section class="card">
-      <h2>تاریخچه نقشه‌ها</h2>
+      <h2>شهر خود را انتخاب کنید</h2>
       <ul class="history-list">
         {% for item in history %}
         <li class="history-item {% if item.map_id == selected_map_id %}active{% endif %}" onclick="loadMap('{{ item.map_id }}')">
@@ -433,7 +435,8 @@ INDEX_TEMPLATE = """
     {% endif %}
     <section class="card">
       {% if summary %}
-      <div class="summary">
+      <button onclick="toggleSummary()" class="summary-toggle-btn">نمایش ویژگی‌های لایه</button>
+      <div class="summary" id="summary-details" style="display: none;">
         <strong>ویژگی‌های لایه:</strong>
         <p>تعداد عوارض: {{ summary.feature_count }}</p>
         <p>سیستم مختصات: {{ summary.crs }}</p>
@@ -522,6 +525,18 @@ INDEX_TEMPLATE = """
 
     function loadMap(mapId) {
       window.location.href = '/map/' + mapId;
+    }
+
+    function toggleSummary() {
+      const summaryDiv = document.getElementById('summary-details');
+      const btn = document.querySelector('.summary-toggle-btn');
+      if (summaryDiv.style.display === 'none') {
+        summaryDiv.style.display = 'block';
+        btn.textContent = 'مخفی کردن ویژگی‌های لایه';
+      } else {
+        summaryDiv.style.display = 'none';
+        btn.textContent = 'نمایش ویژگی‌های لایه';
+      }
     }
   </script>
 </body>
