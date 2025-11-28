@@ -472,66 +472,36 @@ INDEX_TEMPLATE = """
           if (feature.properties) {
             const props = feature.properties;
             
-            // تابع کمکی برای پیدا کردن فیلد (با حساسیت به حروف کوچک/بزرگ)
-            function findField(props, fieldNames) {
-              // اول دقیقاً همان نام فیلد را چک می‌کنیم
-              for (const fieldName of fieldNames) {
-                if (props[fieldName] !== undefined && props[fieldName] !== null && 
-                    String(props[fieldName]).trim() !== '') {
-                  return String(props[fieldName]).trim();
-                }
-              }
-              // اگر پیدا نشد، با case-insensitive جستجو می‌کنیم
-              const fieldNamesLower = fieldNames.map(f => f.toLowerCase());
-              for (const key in props) {
-                if (fieldNamesLower.includes(key.toLowerCase())) {
-                  const value = props[key];
-                  if (value !== undefined && value !== null && String(value).trim() !== '') {
-                    return String(value).trim();
-                  }
-                }
-              }
-              return null;
-            }
+            // کلمات کلیدی برای جستجو در نام فیلدها (case-insensitive)
+            const keywords = ['name', 'mahalle', 'district', 'region', 'area'];
             
-            // پیدا کردن فیلدهای مورد نظر
-            // Name - با تمام حالت‌های حروف
-            const name = findField(props, ['Name', 'name', 'NAME']);
-            
-            // region - با تمام حالت‌های حروف
-            const region = findField(props, ['region', 'Region', 'REGION']);
-            
-            // district - با تمام حالت‌های حروف
-            const district = findField(props, ['district', 'District', 'DISTRICT']);
-            
-            // mahal - با تمام حالت‌های حروف (همچنین mahale)
-            const mahal = findField(props, ['mahal', 'Mahal', 'MAHAL', 'mahale', 'Mahale', 'MAHALE']);
-            
-            // area - با تمام حالت‌های حروف
-            const area = findField(props, ['area', 'Area', 'AREA']);
+            // فیلدهایی که باید نادیده گرفته شوند
+            const excludeFields = ['tootapp_url', 'geometry'];
             
             // ساخت محتوای پاپ‌آپ
             const popupItems = [];
             
-            // نمایش فیلدها فقط اگر موجود باشند
-            if (name) {
-              popupItems.push(`<strong>نام محل:</strong> ${name}`);
-            }
-            
-            if (region) {
-              popupItems.push(`<strong>منطقه:</strong> ${region}`);
-            }
-            
-            if (district) {
-              popupItems.push(`<strong>ناحیه:</strong> ${district}`);
-            }
-            
-            if (mahal) {
-              popupItems.push(`<strong>محله:</strong> ${mahal}`);
-            }
-            
-            if (area) {
-              popupItems.push(`<strong>مساحت:</strong> ${area}`);
+            // بررسی تمام فیلدها و نمایش آنهایی که نامشان شامل کلمات کلیدی است
+            for (const key in props) {
+              // نادیده گرفتن فیلدهای خاص
+              if (excludeFields.includes(key.toLowerCase())) {
+                continue;
+              }
+              
+              const value = props[key];
+              // بررسی اینکه فیلد خالی نباشد
+              if (value === undefined || value === null || String(value).trim() === '') {
+                continue;
+              }
+              
+              // بررسی اینکه نام فیلد شامل یکی از کلمات کلیدی باشد
+              const keyLower = key.toLowerCase();
+              const matchesKeyword = keywords.some(keyword => keyLower.includes(keyword.toLowerCase()));
+              
+              if (matchesKeyword) {
+                // نمایش فیلد با نام اصلی آن
+                popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+              }
             }
             
             const link = props.tootapp_url || 'https://tootapp.ir';
