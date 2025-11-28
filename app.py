@@ -470,17 +470,62 @@ INDEX_TEMPLATE = """
         style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1 }; },
         onEachFeature: function(feature, layer) {
           if (feature.properties) {
-            const pairs = Object.entries(feature.properties)
-              .filter(([key]) => key !== 'tootapp_url');
-            const details = pairs
-              .map(([key, value]) => `<strong>${key}</strong>: ${value ?? '-'}`)
-              .join('<br/>');
-
-            const link = feature.properties.tootapp_url || 'https://tootapp.ir';
-            const tootItem = `<strong>پیوستن به شبکه محله</strong>: <a href="${link}" target="_blank" rel="noopener">ورود به توت‌اپ</a>`;
-
-            const popupContent = [details || 'بدون اطلاعات توصیفی', tootItem]
-              .join('<br/><br/>');
+            const props = feature.properties;
+            
+            // پیدا کردن اسم محل
+            const nameFields = ['name', 'Name', 'NAME', 'mahale', 'Mahale', 'MAHALE', 
+                              'neighbourhood', 'neighborhood', 'EName', 'ename'];
+            let name = null;
+            for (const field of nameFields) {
+              if (props[field] && props[field].toString().trim()) {
+                name = props[field].toString().trim();
+                break;
+              }
+            }
+            
+            // پیدا کردن جمعیت
+            const populationFields = ['population', 'Population', 'POPULATION', 
+                                     'جمعیت', 'jamiat', 'Jamiat'];
+            let population = null;
+            for (const field of populationFields) {
+              if (props[field] && props[field].toString().trim()) {
+                population = props[field].toString().trim();
+                break;
+              }
+            }
+            
+            // پیدا کردن مساحت
+            const areaFields = ['area', 'Area', 'AREA', 'مساحت', 'masahat', 
+                              'Masahat', 'size', 'Size'];
+            let area = null;
+            for (const field of areaFields) {
+              if (props[field] && props[field].toString().trim()) {
+                area = props[field].toString().trim();
+                break;
+              }
+            }
+            
+            // ساخت محتوای پاپ‌آپ
+            const popupItems = [];
+            
+            if (name) {
+              popupItems.push(`<strong>نام محل:</strong> ${name}`);
+            }
+            
+            if (population) {
+              popupItems.push(`<strong>جمعیت:</strong> ${population}`);
+            }
+            
+            if (area) {
+              popupItems.push(`<strong>مساحت:</strong> ${area}`);
+            }
+            
+            const link = props.tootapp_url || 'https://tootapp.ir';
+            popupItems.push(`<strong>پیوستن به شبکه محله:</strong> <a href="${link}" target="_blank" rel="noopener">ورود به توت‌اپ</a>`);
+            
+            const popupContent = popupItems.length > 0 
+              ? popupItems.join('<br/>')
+              : 'بدون اطلاعات';
 
             layer.bindPopup(popupContent);
           }
