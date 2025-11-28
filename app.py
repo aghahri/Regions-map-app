@@ -467,15 +467,18 @@ MANAGE_LINKS_TEMPLATE = """
     .card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.07); }
     button { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; background: #2a9d8f; color: #fff; margin-left: 0.5rem; }
     button.back { background: #6c757d; }
-    button.save { background: #28a745; width: 100%; margin-top: 1rem; }
+    button.save { background: #28a745; padding: 0.5rem 1rem; font-size: 0.9rem; }
+    button.save-all { background: #28a745; width: 100%; margin-top: 1rem; }
     .error { color: #d62828; margin-top: 0.75rem; }
-    .success { color: #28a745; margin-top: 0.75rem; }
+    .success { color: #28a745; margin-top: 0.75rem; padding: 0.5rem; background: #d4edda; border-radius: 6px; }
     .neighborhood-item { padding: 1rem; margin-bottom: 1rem; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
     .neighborhood-name { font-weight: bold; margin-bottom: 0.5rem; color: #1f4e5f; }
-    .link-input-group { display: flex; align-items: center; gap: 0.5rem; }
+    .link-input-group { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
     .link-prefix { color: #6c757d; }
     input[type="text"] { flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px; }
-    .neighborhood-info { font-size: 0.9rem; color: #6c757d; margin-top: 0.5rem; }
+    .neighborhood-info { font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; }
+    .neighborhood-form { margin-top: 0.5rem; }
+    .save-status { font-size: 0.85rem; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
@@ -496,23 +499,73 @@ MANAGE_LINKS_TEMPLATE = """
       {% if success %}
         <div class="success">{{ success }}</div>
       {% endif %}
-      <form method="post" id="linksForm">
-        <h3>لینک‌های محلات ({{ neighborhoods|length }} محله)</h3>
-        <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/</code> شروع شوند. فقط قسمت بعد از اسلش را وارد کنید.</p>
-        {% for neighborhood in neighborhoods %}
-        <div class="neighborhood-item">
-          <div class="neighborhood-name">{{ neighborhood.name }}</div>
-          <div class="neighborhood-info">{{ neighborhood.info }}</div>
+      <h3>لینک‌های محلات ({{ neighborhoods|length }} محله)</h3>
+      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/</code> شروع شوند. فقط قسمت بعد از اسلش را وارد کنید.</p>
+      {% for neighborhood in neighborhoods %}
+      <div class="neighborhood-item">
+        <div class="neighborhood-name">{{ neighborhood.name }}</div>
+        <div class="neighborhood-info">{{ neighborhood.info }}</div>
+        <form method="post" action="/admin/links/{{ map_id }}/save" class="neighborhood-form">
+          <input type="hidden" name="feature_id" value="{{ neighborhood.id }}" />
           <div class="link-input-group">
             <span class="link-prefix">tootapp.ir/</span>
-            <input type="text" name="link_{{ neighborhood.id }}" value="{{ neighborhood.link }}" placeholder="مثلاً: Tehran3Da" />
+            <input type="text" name="link" value="{{ neighborhood.link }}" placeholder="مثلاً: Tehran3Da" required />
+            <button type="submit" class="save">ذخیره</button>
           </div>
-        </div>
-        {% endfor %}
-        <button type="submit" class="save">ذخیره تمام لینک‌ها</button>
-      </form>
+          <div class="save-status" id="status_{{ neighborhood.id }}"></div>
+        </form>
+      </div>
+      {% endfor %}
     </div>
   </main>
+  <script>
+    // مدیریت فرم‌های ذخیره
+    document.querySelectorAll('.neighborhood-form').forEach(form => {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const featureId = formData.get('feature_id');
+        const statusDiv = document.getElementById('status_' + featureId);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        
+        // نمایش loading
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'در حال ذخیره...';
+        statusDiv.textContent = '';
+        
+        try {
+          const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            statusDiv.textContent = '✓ ' + result.message;
+            statusDiv.style.color = '#28a745';
+            submitBtn.textContent = 'ذخیره';
+            submitBtn.disabled = false;
+            
+            // پاک کردن پیام بعد از 3 ثانیه
+            setTimeout(() => {
+              statusDiv.textContent = '';
+            }, 3000);
+          } else {
+            statusDiv.textContent = '✗ ' + (result.error || 'خطا در ذخیره');
+            statusDiv.style.color = '#d62828';
+            submitBtn.textContent = 'ذخیره';
+            submitBtn.disabled = false;
+          }
+        } catch (error) {
+          statusDiv.textContent = '✗ خطا در ذخیره';
+          statusDiv.style.color = '#d62828';
+          submitBtn.textContent = 'ذخیره';
+          submitBtn.disabled = false;
+        }
+      });
+    });
+  </script>
 </body>
 </html>
 """
@@ -790,7 +843,7 @@ def admin_delete_map(map_id: str):
         return redirect(url_for("admin_panel") + "?error=حذف نقشه با خطا مواجه شد")
 
 
-@app.route("/admin/links/<map_id>", methods=["GET", "POST"])
+@app.route("/admin/links/<map_id>", methods=["GET"])
 def admin_manage_links(map_id: str):
     """مدیریت لینک‌های توت‌اپ برای یک نقشه (فقط برای ادمین)"""
     if not is_admin():
@@ -806,33 +859,8 @@ def admin_manage_links(map_id: str):
     map_info = next((item for item in history if item.get("map_id") == map_id), None)
     map_name = map_info.get("map_name", map_info.get("original_filename", "نقشه")) if map_info else "نقشه"
 
-    error = None
-    success = None
-
-    if request.method == "POST":
-        # بارگذاری لینک‌های موجود
-        links = load_links(map_id)
-        
-        # به‌روزرسانی لینک‌ها از فرم
-        for key, value in request.form.items():
-            if key.startswith("link_"):
-                feature_id = key.replace("link_", "")
-                link_value = value.strip()
-                if link_value:
-                    # حذف tootapp.ir/ اگر کاربر آن را وارد کرده
-                    if link_value.startswith("tootapp.ir/"):
-                        link_value = link_value.replace("tootapp.ir/", "")
-                    if link_value.startswith("https://tootapp.ir/"):
-                        link_value = link_value.replace("https://tootapp.ir/", "")
-                    if link_value.startswith("http://tootapp.ir/"):
-                        link_value = link_value.replace("http://tootapp.ir/", "")
-                    links[feature_id] = link_value
-                elif feature_id in links:
-                    # اگر لینک خالی شد، حذف می‌کنیم
-                    del links[feature_id]
-
-        save_links(map_id, links)
-        success = "لینک‌ها با موفقیت ذخیره شدند!"
+    error = request.args.get("error")
+    success = request.args.get("success")
 
     # آماده‌سازی لیست محلات برای نمایش
     neighborhoods = []
@@ -883,6 +911,41 @@ def admin_manage_links(map_id: str):
         error=error,
         success=success
     )
+
+
+@app.route("/admin/links/<map_id>/save", methods=["POST"])
+def admin_save_single_link(map_id: str):
+    """ذخیره لینک یک محله خاص (فقط برای ادمین)"""
+    if not is_admin():
+        return json.dumps({"success": False, "error": "دسترسی غیرمجاز"}), 403, {"Content-Type": "application/json"}
+
+    feature_id = request.form.get("feature_id", "").strip()
+    link_value = request.form.get("link", "").strip()
+
+    if not feature_id:
+        return json.dumps({"success": False, "error": "شناسه محله نامعتبر است"}), 400, {"Content-Type": "application/json"}
+
+    try:
+        # بارگذاری لینک‌های موجود
+        links = load_links(map_id)
+
+        if link_value:
+            # حذف tootapp.ir/ اگر کاربر آن را وارد کرده
+            if link_value.startswith("tootapp.ir/"):
+                link_value = link_value.replace("tootapp.ir/", "")
+            if link_value.startswith("https://tootapp.ir/"):
+                link_value = link_value.replace("https://tootapp.ir/", "")
+            if link_value.startswith("http://tootapp.ir/"):
+                link_value = link_value.replace("http://tootapp.ir/", "")
+            links[feature_id] = link_value
+        elif feature_id in links:
+            # اگر لینک خالی شد، حذف می‌کنیم
+            del links[feature_id]
+
+        save_links(map_id, links)
+        return json.dumps({"success": True, "message": "لینک با موفقیت ذخیره شد"}), 200, {"Content-Type": "application/json"}
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}), 500, {"Content-Type": "application/json"}
 
 
 if __name__ == "__main__":
