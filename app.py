@@ -472,99 +472,62 @@ INDEX_TEMPLATE = """
           if (feature.properties) {
             const props = feature.properties;
             
-            // پیدا کردن اسم محل - جستجو در تمام فیلدهای ممکن
-            let name = null;
-            
-            // لیست فیلدهای ممکن برای نام
-            const nameFields = ['name', 'Name', 'NAME', 'mahale', 'Mahale', 'MAHALE', 
-                              'neighbourhood', 'neighborhood', 'EName', 'ename', 'ENAME',
-                              'title', 'Title', 'TITLE', 'label', 'Label', 'LABEL',
-                              'محله', 'نام', 'نام_محله', 'name_mahale'];
-            
-            // اول فیلدهای دقیق را چک می‌کنیم
-            for (const field of nameFields) {
-              const value = props[field];
-              if (value !== undefined && value !== null && String(value).trim() !== '') {
-                name = String(value).trim();
-                break;
+            // تابع کمکی برای پیدا کردن فیلد (با حساسیت به حروف کوچک/بزرگ)
+            function findField(props, fieldNames) {
+              // اول دقیقاً همان نام فیلد را چک می‌کنیم
+              for (const fieldName of fieldNames) {
+                if (props[fieldName] !== undefined && props[fieldName] !== null && 
+                    String(props[fieldName]).trim() !== '') {
+                  return String(props[fieldName]).trim();
+                }
               }
-            }
-            
-            // اگر پیدا نشد، در تمام فیلدها جستجو می‌کنیم
-            if (!name) {
+              // اگر پیدا نشد، با case-insensitive جستجو می‌کنیم
+              const fieldNamesLower = fieldNames.map(f => f.toLowerCase());
               for (const key in props) {
-                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry') {
+                if (fieldNamesLower.includes(key.toLowerCase())) {
                   const value = props[key];
                   if (value !== undefined && value !== null && String(value).trim() !== '') {
-                    const keyLower = key.toLowerCase();
-                    // اگر فیلد شبیه نام باشد
-                    if (keyLower.includes('name') || keyLower.includes('mahale') || 
-                        keyLower.includes('neighbour') || keyLower.includes('محل') ||
-                        keyLower.includes('title') || keyLower.includes('label')) {
-                      name = String(value).trim();
-                      break;
-                    }
+                    return String(value).trim();
                   }
                 }
               }
+              return null;
             }
             
-            // اگر هنوز پیدا نشد، اولین فیلد غیرخالی را به عنوان نام استفاده می‌کنیم
-            // (به جز فیلدهای خاص)
-            if (!name) {
-              const excludeFields = ['tootapp_url', 'geometry', 'area', 'Area', 'AREA', 
-                                    'مساحت', 'population', 'Population', 'POPULATION', 
-                                    'جمعیت', 'region', 'Region', 'REGION', 'district', 
-                                    'District', 'city', 'City', 'CITY'];
-              for (const key in props) {
-                const keyLower = key.toLowerCase();
-                if (!excludeFields.some(f => keyLower === f.toLowerCase())) {
-                  const value = props[key];
-                  if (value !== undefined && value !== null && String(value).trim() !== '') {
-                    name = String(value).trim();
-                    break;
-                  }
-                }
-              }
-            }
+            // پیدا کردن فیلدهای مورد نظر
+            // Name - با تمام حالت‌های حروف
+            const name = findField(props, ['Name', 'name', 'NAME']);
             
-            // پیدا کردن جمعیت
-            const populationFields = ['population', 'Population', 'POPULATION', 
-                                     'جمعیت', 'jamiat', 'Jamiat'];
-            let population = null;
-            for (const field of populationFields) {
-              if (props[field] && props[field].toString().trim()) {
-                population = props[field].toString().trim();
-                break;
-              }
-            }
+            // region - با تمام حالت‌های حروف
+            const region = findField(props, ['region', 'Region', 'REGION']);
             
-            // پیدا کردن مساحت
-            const areaFields = ['area', 'Area', 'AREA', 'مساحت', 'masahat', 
-                              'Masahat', 'size', 'Size'];
-            let area = null;
-            for (const field of areaFields) {
-              if (props[field] && props[field].toString().trim()) {
-                area = props[field].toString().trim();
-                break;
-              }
-            }
+            // district - با تمام حالت‌های حروف
+            const district = findField(props, ['district', 'District', 'DISTRICT']);
+            
+            // mahal - با تمام حالت‌های حروف (همچنین mahale)
+            const mahal = findField(props, ['mahal', 'Mahal', 'MAHAL', 'mahale', 'Mahale', 'MAHALE']);
+            
+            // area - با تمام حالت‌های حروف
+            const area = findField(props, ['area', 'Area', 'AREA']);
             
             // ساخت محتوای پاپ‌آپ
             const popupItems = [];
             
-            // نام محل همیشه باید نمایش داده شود (واجب است)
-            // اگر name پیدا نشد، از "نامشخص" استفاده می‌کنیم
-            const displayName = name || 'نامشخص';
-            // Debug: نمایش تمام فیلدها در console (فقط برای debug)
-            if (!name) {
-              console.log('فیلدهای موجود:', Object.keys(props));
-              console.log('مقادیر:', props);
+            // نمایش فیلدها فقط اگر موجود باشند
+            if (name) {
+              popupItems.push(`<strong>نام محل:</strong> ${name}`);
             }
-            popupItems.push(`<strong>نام محل:</strong> ${displayName}`);
             
-            if (population) {
-              popupItems.push(`<strong>جمعیت:</strong> ${population}`);
+            if (region) {
+              popupItems.push(`<strong>منطقه:</strong> ${region}`);
+            }
+            
+            if (district) {
+              popupItems.push(`<strong>ناحیه:</strong> ${district}`);
+            }
+            
+            if (mahal) {
+              popupItems.push(`<strong>محله:</strong> ${mahal}`);
             }
             
             if (area) {
