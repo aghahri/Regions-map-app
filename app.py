@@ -473,28 +473,55 @@ INDEX_TEMPLATE = """
             const props = feature.properties;
             
             // پیدا کردن اسم محل - جستجو در تمام فیلدهای ممکن
+            let name = null;
+            
+            // لیست فیلدهای ممکن برای نام
             const nameFields = ['name', 'Name', 'NAME', 'mahale', 'Mahale', 'MAHALE', 
                               'neighbourhood', 'neighborhood', 'EName', 'ename', 'ENAME',
                               'title', 'Title', 'TITLE', 'label', 'Label', 'LABEL',
                               'محله', 'نام', 'نام_محله', 'name_mahale'];
-            let name = null;
+            
             // اول فیلدهای دقیق را چک می‌کنیم
             for (const field of nameFields) {
-              if (props[field] !== undefined && props[field] !== null && props[field].toString().trim() !== '') {
-                name = props[field].toString().trim();
+              const value = props[field];
+              if (value !== undefined && value !== null && String(value).trim() !== '') {
+                name = String(value).trim();
                 break;
               }
             }
-            // اگر پیدا نشد، اولین فیلد غیرخالی را به عنوان نام استفاده می‌کنیم
+            
+            // اگر پیدا نشد، در تمام فیلدها جستجو می‌کنیم
             if (!name) {
               for (const key in props) {
-                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry' && 
-                    props[key] !== undefined && props[key] !== null && 
-                    props[key].toString().trim() !== '') {
-                  // اگر فیلد شبیه نام باشد
-                  if (key.toLowerCase().includes('name') || key.toLowerCase().includes('mahale') || 
-                      key.toLowerCase().includes('neighbour') || key.toLowerCase().includes('محل')) {
-                    name = props[key].toString().trim();
+                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry') {
+                  const value = props[key];
+                  if (value !== undefined && value !== null && String(value).trim() !== '') {
+                    const keyLower = key.toLowerCase();
+                    // اگر فیلد شبیه نام باشد
+                    if (keyLower.includes('name') || keyLower.includes('mahale') || 
+                        keyLower.includes('neighbour') || keyLower.includes('محل') ||
+                        keyLower.includes('title') || keyLower.includes('label')) {
+                      name = String(value).trim();
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            
+            // اگر هنوز پیدا نشد، اولین فیلد غیرخالی را به عنوان نام استفاده می‌کنیم
+            // (به جز فیلدهای خاص)
+            if (!name) {
+              const excludeFields = ['tootapp_url', 'geometry', 'area', 'Area', 'AREA', 
+                                    'مساحت', 'population', 'Population', 'POPULATION', 
+                                    'جمعیت', 'region', 'Region', 'REGION', 'district', 
+                                    'District', 'city', 'City', 'CITY'];
+              for (const key in props) {
+                const keyLower = key.toLowerCase();
+                if (!excludeFields.some(f => keyLower === f.toLowerCase())) {
+                  const value = props[key];
+                  if (value !== undefined && value !== null && String(value).trim() !== '') {
+                    name = String(value).trim();
                     break;
                   }
                 }
@@ -527,25 +554,14 @@ INDEX_TEMPLATE = """
             const popupItems = [];
             
             // نام محل همیشه باید نمایش داده شود (واجب است)
-            if (name) {
-              popupItems.push(`<strong>نام محل:</strong> ${name}`);
-            } else {
-              // اگر نام پیدا نشد، سعی می‌کنیم اولین فیلد غیرخالی را نمایش دهیم
-              let firstField = null;
-              for (const key in props) {
-                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry' && 
-                    props[key] !== undefined && props[key] !== null && 
-                    props[key].toString().trim() !== '') {
-                  firstField = {key: key, value: props[key].toString().trim()};
-                  break;
-                }
-              }
-              if (firstField) {
-                popupItems.push(`<strong>نام محل:</strong> ${firstField.value}`);
-              } else {
-                popupItems.push(`<strong>نام محل:</strong> نامشخص`);
-              }
+            // اگر name پیدا نشد، از "نامشخص" استفاده می‌کنیم
+            const displayName = name || 'نامشخص';
+            // Debug: نمایش تمام فیلدها در console (فقط برای debug)
+            if (!name) {
+              console.log('فیلدهای موجود:', Object.keys(props));
+              console.log('مقادیر:', props);
             }
+            popupItems.push(`<strong>نام محل:</strong> ${displayName}`);
             
             if (population) {
               popupItems.push(`<strong>جمعیت:</strong> ${population}`);
