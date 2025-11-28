@@ -472,14 +472,32 @@ INDEX_TEMPLATE = """
           if (feature.properties) {
             const props = feature.properties;
             
-            // پیدا کردن اسم محل
+            // پیدا کردن اسم محل - جستجو در تمام فیلدهای ممکن
             const nameFields = ['name', 'Name', 'NAME', 'mahale', 'Mahale', 'MAHALE', 
-                              'neighbourhood', 'neighborhood', 'EName', 'ename'];
+                              'neighbourhood', 'neighborhood', 'EName', 'ename', 'ENAME',
+                              'title', 'Title', 'TITLE', 'label', 'Label', 'LABEL',
+                              'محله', 'نام', 'نام_محله', 'name_mahale'];
             let name = null;
+            // اول فیلدهای دقیق را چک می‌کنیم
             for (const field of nameFields) {
-              if (props[field] && props[field].toString().trim()) {
+              if (props[field] !== undefined && props[field] !== null && props[field].toString().trim() !== '') {
                 name = props[field].toString().trim();
                 break;
+              }
+            }
+            // اگر پیدا نشد، اولین فیلد غیرخالی را به عنوان نام استفاده می‌کنیم
+            if (!name) {
+              for (const key in props) {
+                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry' && 
+                    props[key] !== undefined && props[key] !== null && 
+                    props[key].toString().trim() !== '') {
+                  // اگر فیلد شبیه نام باشد
+                  if (key.toLowerCase().includes('name') || key.toLowerCase().includes('mahale') || 
+                      key.toLowerCase().includes('neighbour') || key.toLowerCase().includes('محل')) {
+                    name = props[key].toString().trim();
+                    break;
+                  }
+                }
               }
             }
             
@@ -508,8 +526,25 @@ INDEX_TEMPLATE = """
             // ساخت محتوای پاپ‌آپ
             const popupItems = [];
             
+            // نام محل همیشه باید نمایش داده شود (واجب است)
             if (name) {
               popupItems.push(`<strong>نام محل:</strong> ${name}`);
+            } else {
+              // اگر نام پیدا نشد، سعی می‌کنیم اولین فیلد غیرخالی را نمایش دهیم
+              let firstField = null;
+              for (const key in props) {
+                if (key !== 'tootapp_url' && key.toLowerCase() !== 'geometry' && 
+                    props[key] !== undefined && props[key] !== null && 
+                    props[key].toString().trim() !== '') {
+                  firstField = {key: key, value: props[key].toString().trim()};
+                  break;
+                }
+              }
+              if (firstField) {
+                popupItems.push(`<strong>نام محل:</strong> ${firstField.value}`);
+              } else {
+                popupItems.push(`<strong>نام محل:</strong> نامشخص`);
+              }
             }
             
             if (population) {
@@ -523,9 +558,7 @@ INDEX_TEMPLATE = """
             const link = props.tootapp_url || 'https://tootapp.ir';
             popupItems.push(`<strong>پیوستن به شبکه محله:</strong> <a href="${link}" target="_blank" rel="noopener">ورود به توت‌اپ</a>`);
             
-            const popupContent = popupItems.length > 0 
-              ? popupItems.join('<br/>')
-              : 'بدون اطلاعات';
+            const popupContent = popupItems.join('<br/>');
 
             layer.bindPopup(popupContent);
           }
