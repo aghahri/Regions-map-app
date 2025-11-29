@@ -858,6 +858,10 @@ INDEX_TEMPLATE = """
     .summary { margin-top: 1rem; line-height: 1.8; }
     .summary-toggle-btn { width: 100%; padding: 0.75rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; background: #2a9d8f; color: #fff; margin-bottom: 1rem; }
     .summary-toggle-btn:hover { background: #238a7d; }
+    .search-box { width: 100%; padding: 0.75rem; border: 1px solid #dde3ea; border-radius: 8px; margin-bottom: 1rem; box-sizing: border-box; font-size: 1rem; }
+    .search-box:focus { outline: none; border-color: #2a9d8f; }
+    .history-item.hidden { display: none; }
+    .no-results { text-align: center; padding: 2rem; color: #6c757d; }
     ul { padding-right: 1.25rem; }
   </style>
 </head>
@@ -870,14 +874,21 @@ INDEX_TEMPLATE = """
     {% if history %}
     <section class="card">
       <h2>شهر خود را انتخاب کنید</h2>
-      <ul class="history-list">
+      <input type="text" id="searchInput" class="search-box" placeholder="جستجوی شهر یا نام نقشه..." onkeyup="filterMaps()" />
+      <ul class="history-list" id="historyList">
         {% for item in history %}
-        <li class="history-item {% if item.map_id == selected_map_id %}active{% endif %}" onclick="loadMap('{{ item.map_id }}')">
+        <li class="history-item {% if item.map_id == selected_map_id %}active{% endif %}" 
+            data-name="{{ (item.map_name or item.original_filename)|lower }}" 
+            data-filename="{{ item.original_filename|lower }}"
+            onclick="loadMap('{{ item.map_id }}')">
           <strong>{{ item.map_name or item.original_filename }}</strong><br/>
           <small>تاریخ: {{ item.upload_date }} | تعداد عوارض: {{ item.feature_count }}</small>
         </li>
         {% endfor %}
       </ul>
+      <div id="noResults" class="no-results" style="display: none;">
+        <p>نتیجه‌ای یافت نشد. لطفاً کلمه دیگری جستجو کنید.</p>
+      </div>
     </section>
     {% endif %}
     <section class="card">
@@ -983,6 +994,34 @@ INDEX_TEMPLATE = """
       } else {
         summaryDiv.style.display = 'none';
         btn.textContent = 'نمایش ویژگی‌های لایه';
+      }
+    }
+
+    function filterMaps() {
+      const searchInput = document.getElementById('searchInput');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+      const historyItems = document.querySelectorAll('.history-item');
+      const noResults = document.getElementById('noResults');
+      let visibleCount = 0;
+
+      historyItems.forEach(item => {
+        const name = item.getAttribute('data-name') || '';
+        const filename = item.getAttribute('data-filename') || '';
+        const searchText = name + ' ' + filename;
+
+        if (searchTerm === '' || searchText.includes(searchTerm)) {
+          item.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+
+      // نمایش پیام "نتیجه‌ای یافت نشد" اگر هیچ نتیجه‌ای نباشد
+      if (visibleCount === 0 && searchTerm !== '') {
+        noResults.style.display = 'block';
+      } else {
+        noResults.style.display = 'none';
       }
     }
   </script>
