@@ -869,10 +869,15 @@ INDEX_TEMPLATE = """
     main { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
     .card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.07); }
     #map { width: 100%; height: 520px; border-radius: 12px; }
-    .history-list { list-style: none; padding: 0; }
-    .history-item { padding: 1rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .history-list { list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto; overflow-x: hidden; }
+    .history-list::-webkit-scrollbar { width: 8px; }
+    .history-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .history-list::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    .history-list::-webkit-scrollbar-thumb:hover { background: #555; }
+    .history-item { padding: 1rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 8px; cursor: pointer; transition: background 0.2s; min-height: 80px; }
     .history-item:hover { background: #e9ecef; }
     .history-item.active { background: #2a9d8f; color: #fff; }
+    .history-item.hidden { display: none; }
     .admin-link { text-align: center; margin-top: 1rem; }
     .admin-link a { color: #2a9d8f; text-decoration: none; }
     .summary { margin-top: 1rem; line-height: 1.8; }
@@ -880,7 +885,6 @@ INDEX_TEMPLATE = """
     .summary-toggle-btn:hover { background: #238a7d; }
     .search-box { width: 100%; padding: 0.75rem; border: 1px solid #dde3ea; border-radius: 8px; margin-bottom: 1rem; box-sizing: border-box; font-size: 1rem; }
     .search-box:focus { outline: none; border-color: #2a9d8f; }
-    .history-item.hidden { display: none; }
     .no-results { text-align: center; padding: 2rem; color: #6c757d; }
     ul { padding-right: 1.25rem; }
   </style>
