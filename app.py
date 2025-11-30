@@ -263,7 +263,26 @@ def load_map_data(map_id: str) -> Optional[Dict]:
         return None
 
 
-def delete_map(map_id: str) -> bool:
+def find_duplicate_map(map_name: str, filename: str) -> Optional[str]:
+    """پیدا کردن نقشه قبلی با همان نام"""
+    history = load_history()
+    search_name = (map_name or filename).lower().strip()
+    
+    for item in history:
+        item_name = (item.get("map_name") or item.get("original_filename", "")).lower().strip()
+        if item_name == search_name:
+            return item.get("map_id")
+    return None
+
+
+def transfer_links(old_map_id: str, new_map_id: str) -> None:
+    """انتقال لینک‌ها از نقشه قدیمی به نقشه جدید"""
+    old_links = load_links(old_map_id)
+    if old_links:
+        save_links(new_map_id, old_links)
+
+
+def delete_map(map_id: str, keep_links: bool = False) -> bool:
     """حذف نقشه از تاریخچه و فایل ذخیره شده"""
     try:
         # حذف فایل JSON
@@ -271,10 +290,11 @@ def delete_map(map_id: str) -> bool:
         if map_file.exists():
             map_file.unlink()
 
-        # حذف فایل لینک‌ها
-        links_file = LINKS_DIR / f"{map_id}.json"
-        if links_file.exists():
-            links_file.unlink()
+        # حذف فایل لینک‌ها فقط اگر keep_links False باشد
+        if not keep_links:
+            links_file = LINKS_DIR / f"{map_id}.json"
+            if links_file.exists():
+                links_file.unlink()
 
         # حذف از تاریخچه
         history = load_history()
@@ -1135,19 +1155,32 @@ def admin_panel():
                 try:
                     geojson, summary = load_geojson(file_obj)
                     map_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                    
+                    # بررسی وجود نقشه قبلی با همان نام
+                    final_map_name = map_name or file_obj.filename
+                    old_map_id = find_duplicate_map(final_map_name, file_obj.filename)
+                    
+                    if old_map_id:
+                        # انتقال لینک‌ها از نقشه قدیمی به جدید
+                        transfer_links(old_map_id, map_id)
+                        # حذف نقشه قدیمی (با حفظ لینک‌ها - که قبلاً منتقل شدند)
+                        delete_map(old_map_id, keep_links=False)
+                        success = f"نقشه با موفقیت آپلود شد و نقشه قبلی جایگزین شد! لینک‌های توت‌اپ حفظ شدند. شناسه: {map_id}"
+                    else:
+                        success = f"نقشه با موفقیت آپلود شد! شناسه: {map_id}"
+                    
                     save_map_data(map_id, geojson, summary, file_obj.filename)
 
                     history = load_history()
                     history.insert(0, {
                         "map_id": map_id,
-                        "map_name": map_name or file_obj.filename,
+                        "map_name": final_map_name,
                         "original_filename": file_obj.filename,
                         "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "feature_count": summary.get("feature_count", 0),
                     })
                     save_history(history)
 
-                    success = f"نقشه با موفقیت آپلود شد! شناسه: {map_id}"
                 except ValueError as exc:
                     error = str(exc)
 
