@@ -35,7 +35,7 @@ LINKS_DIR.mkdir(parents=True, exist_ok=True)
 USERS_FILE = BASE_DIR / "uploads" / "regions" / "users.json"
 
 ALLOWED_EXTENSIONS = {"zip", "geojson"}
-TOOTAPP_BASE_URL = "https://tootapp.ir/"
+TOOTAPP_BASE_URL = "https://tootapp.ir/join/"
 
 # نقش‌های کاربری
 ROLES = {
@@ -662,7 +662,7 @@ MANAGE_LINKS_TEMPLATE = """
         <div class="success">{{ success }}</div>
       {% endif %}
       <h3>لینک‌های محلات ({{ neighborhoods|length }} محله)</h3>
-      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/</code> شروع شوند. فقط قسمت بعد از اسلش را وارد کنید.</p>
+      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/join/</code> شروع شوند. فقط قسمت بعد از join/ را وارد کنید.</p>
       {% for neighborhood in neighborhoods %}
       <div class="neighborhood-item">
         <div class="neighborhood-name">{{ neighborhood.name }}</div>
@@ -670,7 +670,7 @@ MANAGE_LINKS_TEMPLATE = """
         <form method="post" action="/admin/links/{{ map_id }}/save" class="neighborhood-form">
           <input type="hidden" name="feature_id" value="{{ neighborhood.id }}" />
           <div class="link-input-group">
-            <span class="link-prefix">tootapp.ir/</span>
+            <span class="link-prefix">tootapp.ir/join/</span>
             <input type="text" name="link" value="{{ neighborhood.link }}" placeholder="مثلاً: Tehran3Da" required />
             <button type="submit" class="save">ذخیره</button>
           </div>
@@ -989,7 +989,7 @@ INDEX_TEMPLATE = """
               }
             }
             
-            const link = props.tootapp_url || 'https://tootapp.ir';
+            const link = props.tootapp_url || 'https://tootapp.ir/join/';
             popupItems.push(`<strong>پیوستن به شبکه محله:</strong> <a href="${link}" target="_blank" rel="noopener">ورود به توت‌اپ</a>`);
             
             const popupContent = popupItems.join('<br/>');
@@ -1313,12 +1313,18 @@ def admin_save_single_link(map_id: str):
         links = load_links(map_id)
 
         if link_value:
-            # حذف tootapp.ir/ اگر کاربر آن را وارد کرده
-            if link_value.startswith("tootapp.ir/"):
+            # حذف tootapp.ir/join/ یا tootapp.ir/ اگر کاربر آن را وارد کرده
+            if link_value.startswith("tootapp.ir/join/"):
+                link_value = link_value.replace("tootapp.ir/join/", "")
+            elif link_value.startswith("tootapp.ir/"):
                 link_value = link_value.replace("tootapp.ir/", "")
-            if link_value.startswith("https://tootapp.ir/"):
+            if link_value.startswith("https://tootapp.ir/join/"):
+                link_value = link_value.replace("https://tootapp.ir/join/", "")
+            elif link_value.startswith("https://tootapp.ir/"):
                 link_value = link_value.replace("https://tootapp.ir/", "")
-            if link_value.startswith("http://tootapp.ir/"):
+            if link_value.startswith("http://tootapp.ir/join/"):
+                link_value = link_value.replace("http://tootapp.ir/join/", "")
+            elif link_value.startswith("http://tootapp.ir/"):
                 link_value = link_value.replace("http://tootapp.ir/", "")
             links[feature_id] = link_value
         elif feature_id in links:
