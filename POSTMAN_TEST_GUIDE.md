@@ -159,15 +159,17 @@ https://your-domain.com
 - **URL**: `http://your-server-ip/admin/links/{map_id}/save`
 - **Headers**:
   ```
-  Content-Type: application/json
   Cookie: session=your-session-cookie
   ```
-- **Body** (JSON):
-  ```json
-  {
-    "neighborhood_id": "feature-0",
-    "tootapp_link": "https://tootapp.ir/join/Tehran3Da"
-  }
+- **Body** (form-data یا x-www-form-urlencoded):
+  ```
+  feature_id: feature-0
+  link: https://tootapp.ir/join/Tehran3Da
+  ```
+  یا فقط slug:
+  ```
+  feature_id: feature-0
+  link: Tehran3Da
   ```
 
 ### Response (موفق):
@@ -279,9 +281,9 @@ https://your-domain.com
 - Key را `shapefile` بگذارید و نوع را `File` انتخاب کنید
 - فایل را انتخاب کنید
 
-### 3. تست JSON API:
-- Header `Content-Type: application/json` را اضافه کنید
-- Body را روی `raw` و `JSON` تنظیم کنید
+### 3. تست API با Response JSON:
+- برای endpoint `/admin/links/{map_id}/save` از `form-data` استفاده کنید
+- Response به صورت JSON برمی‌گردد
 
 ### 4. بررسی Response:
 - Status Code را بررسی کنید
@@ -344,11 +346,10 @@ Body: form-data
 POST http://your-server-ip/admin/links/{map_id}/save
 Headers: 
   Cookie: session=...
-  Content-Type: application/json
-Body: {
-  "neighborhood_id": "feature-0",
-  "tootapp_link": "https://tootapp.ir/join/Test"
-}
+Body: form-data
+  - feature_id: feature-0
+  - link: https://tootapp.ir/join/Test
+  (یا فقط: link: Test)
 ```
 
 ---
