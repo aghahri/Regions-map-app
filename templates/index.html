@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Behshad Insurance{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <h1 class="hero-title">Protecting Your Engineering Projects in Texas</h1>
+            <p class="hero-subtitle">Comprehensive engineering insurance solutions designed for construction, engineering, and architectural firms. Trusted by professionals across Texas.</p>
+            <div class="hero-buttons">
+                <a href="{{ url_for('quote') }}" class="btn btn-primary btn-large">Get Free Quote</a>
+                <a href="{{ url_for('services') }}" class="btn btn-secondary btn-large">Our Services</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number">500+</span>
+                    <span class="stat-label">Clients Protected</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">$2B+</span>
+                    <span class="stat-label">Projects Covered</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">15+</span>
+                    <span class="stat-label">Years Experience</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="hero-overlay"></div>
+</section>
+
+<!-- Why Choose Us Section -->
+<section class="why-choose-us">
+    <div class="container">
+        <h2 class="section-title">Why Choose Behshad Insurance?</h2>
+        <p class="section-subtitle">We specialize in engineering insurance, providing tailored coverage for your unique needs</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Comprehensive Coverage</h3>
+                <p>Protection against professional liability, errors & omissions, and general liability claims specific to engineering projects.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏆</div>
+                <h3>Industry Expertise</h3>
+                <p>Deep understanding of engineering and construction risks with policies designed by industry experts.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Fast Claims Processing</h3>
+                <p>Quick and efficient claims handling to get you back on track with minimal disruption to your business.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤝</div>
+                <h3>Personalized Service</h3>
+                <p>Dedicated account managers who understand your business and provide customized insurance solutions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💼</div>
+                <h3>Competitive Rates</h3>
+                <p>Affordable premiums without compromising on coverage quality or service excellence.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>Texas Licensed</h3>
+                <p>Fully licensed and authorized to provide insurance services throughout the state of Texas.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Preview Section -->
+<section class="services-preview">
+    <div class="container">
+        <h2 class="section-title">Our Insurance Services</h2>
+        <p class="section-subtitle">Comprehensive coverage options for engineering and construction professionals</p>
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-icon">🔧</div>
+                <h3>Professional Liability Insurance</h3>
+                <p>Protects against claims of negligence, errors, or omissions in your professional services.</p>
+                <a href="{{ url_for('services') }}#professional-liability" class="service-link">Learn More →</a>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">📐</div>
+                <h3>Errors & Omissions (E&O)</h3>
+                <p>Coverage for design errors, construction defects, and professional mistakes that could result in financial loss.</p>
+                <a href="{{ url_for('services') }}#errors-omissions" class="service-link">Learn More →</a>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">🏗️</div>
+                <h3>General Liability Insurance</h3>
+                <p>Protection against third-party claims for bodily injury, property damage, and advertising injury.</p>
+                <a href="{{ url_for('services') }}#general-liability" class="service-link">Learn More →</a>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">👷</div>
+                <h3>Workers' Compensation</h3>
+                <p>Required coverage for workplace injuries and illnesses, protecting both employees and employers.</p>
+                <a href="{{ url_for('services') }}#workers-compensation" class="service-link">Learn More →</a>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">🚧</div>
+                <h3>Contractors Insurance</h3>
+                <p>Comprehensive coverage for construction contractors, subcontractors, and construction managers.</p>
+                <a href="{{ url_for('services') }}#contractors-insurance" class="service-link">Learn More →</a>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">📊</div>
+                <h3>Business Property Insurance</h3>
+                <p>Protection for your office, equipment, tools, and business property against various risks.</p>
+                <a href="{{ url_for('services') }}#business-property" class="service-link">Learn More →</a>
+            </div>
+        </div>
+        <div class="text-center" style="margin-top: 3rem;">
+            <a href="{{ url_for('services') }}" class="btn btn-primary">View All Services</a>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content">
+            <h2>Ready to Protect Your Engineering Business?</h2>
+            <p>Get a free, no-obligation quote today and discover how we can customize coverage for your specific needs.</p>
+            <div class="cta-buttons">
+                <a href="{{ url_for('quote') }}" class="btn btn-primary btn-large">Get Your Free Quote</a>
+                <a href="{{ url_for('contact') }}" class="btn btn-outline btn-large">Contact Us</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="testimonials">
+    <div class="container">
+        <h2 class="section-title">What Our Clients Say</h2>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-content">
+                    <p class="testimonial-text">"Behshad Insurance has been our trusted partner for over 5 years. Their expertise in engineering insurance and personalized service is unmatched."</p>
+                </div>
+                <div class="testimonial-author">
+                    <strong>John Martinez</strong>
+                    <span>Principal Engineer, Martinez Engineering Group</span>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-content">
+                    <p class="testimonial-text">"When we had a claim, their team handled it quickly and professionally. Their coverage saved us from significant financial loss."</p>
+                </div>
+                <div class="testimonial-author">
+                    <strong>Sarah Chen</strong>
+                    <span>CEO, Chen Construction Services</span>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-content">
+                    <p class="testimonial-text">"The best insurance provider for engineering firms in Texas. Competitive rates and comprehensive coverage that truly protects our business."</p>
+                </div>
+                <div class="testimonial-author">
+                    <strong>Michael Thompson</strong>
+                    <span>Director, Thompson Architecture & Design</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

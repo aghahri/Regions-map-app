@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحلیل سهام فرابورس ایران</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .form-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .results-section {
+            padding: 30px;
+        }
+        
+        .results-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .results-header h2 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .results-header .date {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .stock-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stock-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .stock-symbol {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stock-name {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .change-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .change-negative {
+            background: #fee;
+            color: #c33;
+        }
+        
+        .stock-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .info-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .entry-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .entry-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .entry-price {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .entry-price-label {
+            color: #666;
+        }
+        
+        .entry-price-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .recommendation {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .recommendation-strong {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .recommendation-normal {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+        
+        .recommendation-cautious {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .risk-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .risk-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .risk-low {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .charts-section {
+            padding: 30px;
+            background: #f8f9fa;
+            margin-top: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chart-container h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+        
+        .chart-wrapper-small {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .stocks-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .stock-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+            
+            .chart-wrapper-small {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 تحلیل سهام فرابورس ایران</h1>
+            <p>یافتن پنج سهم عقب‌مانده و تحلیل نقطه ورود</p>
+        </div>
+        
+        <div class="form-section">
+            <form method="POST" action="/">
+                <div class="form-group">
+                    <label for="currency">واحد پول:</label>
+                    <select name="currency" id="currency">
+                        <option value="تومان" {% if currency == 'تومان' %}selected{% endif %}>تومان</option>
+                        <option value="ریال" {% if currency == 'ریال' %}selected{% endif %}>ریال</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">🔍 تحلیل سهام</button>
+            </form>
+        </div>
+        
+        {% if error %}
+        <div class="error-message">
+            <h3>⚠️ خطا</h3>
+            <p>{{ error }}</p>
+        </div>
+        {% elif stocks %}
+        <div class="results-section">
+            <div class="results-header">
+                <h2>📊 پنج سهم عقب‌مانده در رشد</h2>
+                <p class="date">تاریخ تحلیل: {{ analysis_date }}</p>
+            </div>
+            
+            <div class="stocks-grid">
+                {% for stock in stocks %}
+                <div class="stock-card">
+                    <div class="stock-header">
+                        <div>
+                            <div class="stock-symbol">{{ stock.symbol }}</div>
+                            <div class="stock-name">{{ stock.name }}</div>
+                        </div>
+                        <div>
+                            <span class="change-badge change-negative">
+                                {{ "%.2f"|format(stock.change_percent) }}%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="stock-info">
+                        <div class="info-item">
+                            <div class="info-label">قیمت فعلی (رنج)</div>
+                            <div class="info-value">{{ "{:,}".format(stock.price_range_low|int) }} - {{ "{:,}".format(stock.price_range_high|int) }} {{ stock.currency }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">قیمت قبلی</div>
+                            <div class="info-value">{{ "{:,}".format(stock.previous_price|int) }} {{ stock.currency }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">نرخ رشد</div>
+                            <div class="info-value">{{ "%.2f"|format(stock.growth_rate) }}%</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">P/E Ratio</div>
+                            <div class="info-value">{{ "%.2f"|format(stock.pe_ratio) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">حجم معاملات</div>
+                            <div class="info-value">{{ "{:,}".format(stock.volume|int) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">بازدهی بالقوه</div>
+                            <div class="info-value">{{ "%.2f"|format(stock.potential_return) }}%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="entry-section">
+                        <h3>🎯 نقطه ورود</h3>
+                        <div class="entry-price">
+                            <span class="entry-price-label">قیمت ورود (پایین):</span>
+                            <span class="entry-price-value">{{ "{:,}".format(stock.entry_price_low|int) }} {{ stock.currency }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">قیمت ورود (بالا):</span>
+                            <span class="entry-price-value">{{ "{:,}".format(stock.entry_price_high|int) }} {{ stock.currency }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">هدف قیمت:</span>
+                            <span class="entry-price-value">{{ "{:,}".format(stock.target_price|int) }} {{ stock.currency }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- سیگنال هوشمند -->
+                    <div class="entry-section" style="background: {% if stock.signal_color == 'green' %}linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%){% elif stock.signal_color == 'yellow' %}linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%){% else %}linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%){% endif %}; margin-top: 20px;">
+                        <h3 style="color: {% if stock.signal_color == 'green' %}#155724{% elif stock.signal_color == 'yellow' %}#856404{% else %}#495057{% endif %};">🎯 سیگنال هوشمند</h3>
+                        <div style="text-align: center; padding: 15px;">
+                            <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 10px; color: {% if stock.signal_color == 'green' %}#155724{% elif stock.signal_color == 'yellow' %}#856404{% else %}#495057{% endif %};">{{ stock.final_signal }}</div>
+                            <div style="font-size: 1.8em; font-weight: bold; color: #667eea;">امتیاز: {{ stock.score }}/100</div>
+                        </div>
+                    </div>
+                    
+                    <!-- تحلیل تکنیکال -->
+                    <div class="entry-section" style="margin-top: 20px;">
+                        <h3>📊 تحلیل تکنیکال</h3>
+                        <div class="entry-price">
+                            <span class="entry-price-label">RSI:</span>
+                            <span class="entry-price-value">{{ stock.rsi_value }} - {{ stock.rsi_signal }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">MACD:</span>
+                            <span class="entry-price-value">{{ stock.macd_value }} - {{ stock.macd_signal }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">تحلیل حجم:</span>
+                            <span class="entry-price-value">{{ stock.volume_analysis }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- پیش‌بینی قیمت -->
+                    <div class="entry-section" style="margin-top: 20px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                        <h3 style="color: #1976d2;">🔮 پیش‌بینی قیمت</h3>
+                        <div class="entry-price">
+                            <span class="entry-price-label">30 روز آینده:</span>
+                            <span class="entry-price-value" style="color: #1976d2;">{{ "{:,}".format(stock.price_prediction_30d|int) }} {{ stock.currency }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">60 روز آینده:</span>
+                            <span class="entry-price-value" style="color: #1976d2;">{{ "{:,}".format(stock.price_prediction_60d|int) }} {{ stock.currency }}</span>
+                        </div>
+                        <div class="entry-price">
+                            <span class="entry-price-label">90 روز آینده:</span>
+                            <span class="entry-price-value" style="color: #1976d2; font-weight: bold;">{{ "{:,}".format(stock.price_prediction_90d|int) }} {{ stock.currency }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- ماشین حساب سود/زیان -->
+                    <div class="entry-section" style="margin-top: 20px; background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);">
+                        <h3 style="color: #7b1fa2;">💰 ماشین حساب سود/زیان</h3>
+                        <div style="padding: 15px; background: white; border-radius: 8px; margin-top: 10px;">
+                            <label style="display: block; margin-bottom: 8px; color: #666;">مبلغ سرمایه‌گذاری ({{ stock.currency }}):</label>
+                            <input type="number" id="investment_{{ loop.index }}" class="investment-input" placeholder="مثلاً 10000000" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 15px;">
+                            <div id="profit_calc_{{ loop.index }}" style="display: none;">
+                                <div class="entry-price" style="background: #f8f9fa; margin-top: 10px;">
+                                    <span class="entry-price-label">تعداد سهم:</span>
+                                    <span class="entry-price-value" id="shares_{{ loop.index }}">-</span>
+                                </div>
+                                <div class="entry-price" style="background: #d4edda; margin-top: 10px;">
+                                    <span class="entry-price-label">سود احتمالی (در هدف قیمت):</span>
+                                    <span class="entry-price-value" style="color: #155724; font-weight: bold;" id="profit_{{ loop.index }}">-</span>
+                                </div>
+                                <div class="entry-price" style="background: #d1ecf1; margin-top: 10px;">
+                                    <span class="entry-price-label">درصد سود:</span>
+                                    <span class="entry-price-value" style="color: #0c5460; font-weight: bold;" id="profit_percent_{{ loop.index }}">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation recommendation-{% if stock.recommendation == 'خرید قوی' %}strong{% elif stock.recommendation == 'خرید' %}normal{% else %}cautious{% endif %}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">{{ stock.recommendation }}</div>
+                        <span class="risk-badge risk-{% if stock.risk_level == 'بالا' %}high{% elif stock.risk_level == 'متوسط' %}medium{% else %}low{% endif %}">
+                            سطح ریسک: {{ stock.risk_level }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- بخش نمودارها -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>📊 نمودار مقایسه قیمت سهام</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>📈 نمودار تغییرات درصدی</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="changeChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>💰 نمودار بازدهی بالقوه</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="returnChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>⭐ نمودار امتیازدهی هوشمند</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Chart.js از CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <script>
+        {% if stocks %}
+        // داده‌های سهام
+        const stocksData = [
+            {% for stock in stocks %}
+            {
+                symbol: "{{ stock.symbol }}",
+                name: "{{ stock.name }}",
+                currentPrice: {{ stock.current_price }},
+                priceRangeLow: {{ stock.price_range_low }},
+                priceRangeHigh: {{ stock.price_range_high }},
+                changePercent: {{ stock.change_percent }},
+                growthRate: {{ stock.growth_rate }},
+                potentialReturn: {{ stock.potential_return }},
+                entryPriceLow: {{ stock.entry_price_low }},
+                entryPriceHigh: {{ stock.entry_price_high }},
+                targetPrice: {{ stock.target_price }},
+                currency: "{{ stock.currency }}",
+                score: {{ stock.score }},
+                rsiValue: {{ stock.rsi_value }},
+                rsiSignal: "{{ stock.rsi_signal }}",
+                macdValue: {{ stock.macd_value }},
+                macdSignal: "{{ stock.macd_signal }}",
+                finalSignal: "{{ stock.final_signal }}",
+                pricePrediction30d: {{ stock.price_prediction_30d }},
+                pricePrediction60d: {{ stock.price_prediction_60d }},
+                pricePrediction90d: {{ stock.price_prediction_90d }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // نمودار قیمت
+        const priceCtx = document.getElementById('priceChart');
+        if (priceCtx) {
+            new Chart(priceCtx, {
+                type: 'bar',
+                data: {
+                    labels: stocksData.map(s => s.symbol),
+                    datasets: [
+                        {
+                            label: 'قیمت فعلی',
+                            data: stocksData.map(s => s.currentPrice),
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'قیمت قبلی',
+                            data: stocksData.map(s => s.currentPrice / (1 + s.changePercent/100)),
+                            backgroundColor: 'rgba(200, 200, 200, 0.6)',
+                            borderColor: 'rgba(200, 200, 200, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'هدف قیمت',
+                            data: stocksData.map(s => s.targetPrice),
+                            backgroundColor: 'rgba(76, 175, 80, 0.6)',
+                            borderColor: 'rgba(76, 175, 80, 1)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Segoe UI',
+                                    size: 14
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'مقایسه قیمت‌های سهام',
+                            font: {
+                                family: 'Segoe UI',
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('fa-IR') + ' تومان';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // نمودار تغییرات درصدی
+        const changeCtx = document.getElementById('changeChart');
+        if (changeCtx) {
+            new Chart(changeCtx, {
+                type: 'line',
+                data: {
+                    labels: stocksData.map(s => s.symbol),
+                    datasets: [
+                        {
+                            label: 'درصد تغییر',
+                            data: stocksData.map(s => s.changePercent),
+                            borderColor: 'rgba(244, 67, 54, 1)',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'نرخ رشد',
+                            data: stocksData.map(s => s.growthRate),
+                            borderColor: 'rgba(255, 152, 0, 1)',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Segoe UI',
+                                    size: 14
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'تحلیل تغییرات و رشد سهام',
+                            font: {
+                                family: 'Segoe UI',
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // نمودار بازدهی بالقوه
+        const returnCtx = document.getElementById('returnChart');
+        if (returnCtx) {
+            new Chart(returnCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: stocksData.map(s => s.symbol),
+                    datasets: [{
+                        label: 'بازدهی بالقوه (%)',
+                        data: stocksData.map(s => s.potentialReturn),
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(76, 175, 80, 0.8)',
+                            'rgba(255, 152, 0, 0.8)',
+                            'rgba(156, 39, 176, 0.8)',
+                            'rgba(244, 67, 54, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(102, 126, 234, 1)',
+                            'rgba(76, 175, 80, 1)',
+                            'rgba(255, 152, 0, 1)',
+                            'rgba(156, 39, 176, 1)',
+                            'rgba(244, 67, 54, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    family: 'Segoe UI',
+                                    size: 14
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'بازدهی بالقوه هر سهم',
+                            font: {
+                                family: 'Segoe UI',
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // نمودار امتیازدهی
+        const scoreCtx = document.getElementById('scoreChart');
+        if (scoreCtx) {
+            new Chart(scoreCtx, {
+                type: 'radar',
+                data: {
+                    labels: stocksData.map(s => s.symbol),
+                    datasets: [{
+                        label: 'امتیاز هوشمند',
+                        data: stocksData.map(s => s.score),
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(102, 126, 234, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Segoe UI',
+                                    size: 14
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'مقایسه امتیاز هوشمند سهام',
+                            font: {
+                                family: 'Segoe UI',
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                stepSize: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        {% endif %}
+        
+        // ماشین حساب سود/زیان
+        document.querySelectorAll('.investment-input').forEach((input, index) => {
+            input.addEventListener('input', function() {
+                const investment = parseFloat(this.value);
+                const stockIndex = index;
+                
+                if (investment > 0 && stocksData[stockIndex]) {
+                    const stock = stocksData[stockIndex];
+                    const entryPrice = stock.entryPriceLow;
+                    const targetPrice = stock.targetPrice;
+                    
+                    const shares = Math.floor(investment / entryPrice);
+                    const profit = (targetPrice - entryPrice) * shares;
+                    const profitPercent = ((targetPrice - entryPrice) / entryPrice) * 100;
+                    
+                    document.getElementById('shares_' + (stockIndex + 1)).textContent = shares.toLocaleString('fa-IR') + ' سهم';
+                    document.getElementById('profit_' + (stockIndex + 1)).textContent = profit.toLocaleString('fa-IR') + ' ' + stock.currency;
+                    document.getElementById('profit_percent_' + (stockIndex + 1)).textContent = profitPercent.toFixed(2) + '%';
+                    document.getElementById('profit_calc_' + (stockIndex + 1)).style.display = 'block';
+                } else {
+                    document.getElementById('profit_calc_' + (stockIndex + 1)).style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

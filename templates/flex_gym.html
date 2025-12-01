@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ gym.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border-radius: 15px;
+        }
+
+        .header-content {
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .subtitle {
+            color: #764ba2;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .name-en {
+            color: #999;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .hero h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 1.1em;
+            color: #666;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Contact Info */
+        .contact-info {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .contact-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .contact-item h3 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .contact-item p {
+            font-size: 1.1em;
+        }
+
+        .phone-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+
+        .phone-list li {
+            margin: 5px 0;
+            font-size: 1.2em;
+        }
+
+        /* Sections */
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 30px;
+            text-align: center;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 15px;
+        }
+
+        /* Grid Layouts */
+        .facilities-grid, .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .facility-card, .service-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 12px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .facility-card:hover, .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border-color: #667eea;
+        }
+
+        .facility-icon, .service-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+            text-align: center;
+        }
+
+        .facility-title, .service-title {
+            color: #667eea;
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .facility-desc, .service-desc {
+            color: #666;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Working Hours */
+        .working-hours {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        .working-hours h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .social-links {
+            margin-top: 20px;
+        }
+
+        .social-links a {
+            display: inline-block;
+            margin: 0 15px;
+            font-size: 1.5em;
+            color: #667eea;
+            transition: transform 0.3s;
+        }
+
+        .social-links a:hover {
+            transform: scale(1.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .facilities-grid, .services-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Map Section */
+        .map-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .map-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 15px;
+            transition: transform 0.3s;
+        }
+
+        .map-link:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-content">
+                <h1>🏋️ {{ gym.name }}</h1>
+                <p class="subtitle">{{ gym.description }}</p>
+                <p class="name-en">{{ gym.name_en }}</p>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <div class="hero">
+            <h2>به باشگاه انعطاف خوش آمدید</h2>
+            <p>
+                مجموعه ورزشی مدرن و مجهز ویژه آقایان که در منطقه نیاوران تهران واقع شده است. 
+                این باشگاه با ارائه خدمات متنوع و امکانات پیشرفته، تجربه‌ای فراتر از یک باشگاه ورزشی را برای اعضای خود فراهم می‌کند.
+            </p>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="contact-info">
+            <h2>📞 اطلاعات تماس</h2>
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <h3>📍 آدرس</h3>
+                    <p>{{ gym.address.full }}</p>
+                    <p style="margin-top: 10px; font-size: 0.9em;">منطقه: {{ gym.address.district }}</p>
+                </div>
+                <div class="contact-item">
+                    <h3>📱 تلفن</h3>
+                    <ul class="phone-list">
+                        {% for phone in gym.phone %}
+                        <li>{{ phone }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="contact-item">
+                    <h3>🕐 ساعت کاری</h3>
+                    <p>{{ gym.working_hours.days }}</p>
+                    <p style="margin-top: 10px; font-size: 1.1em;">{{ gym.working_hours.time }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Facilities -->
+        <div class="section">
+            <h2>🏢 امکانات باشگاه</h2>
+            <div class="facilities-grid">
+                {% for facility in gym.facilities %}
+                <div class="facility-card">
+                    <span class="facility-icon">{{ facility.icon }}</span>
+                    <h3 class="facility-title">{{ facility.title }}</h3>
+                    <p class="facility-desc">{{ facility.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Services -->
+        <div class="section">
+            <h2>🎯 خدمات باشگاه</h2>
+            <div class="services-grid">
+                {% for service in gym.services %}
+                <div class="service-card">
+                    <span class="service-icon">{{ service.icon }}</span>
+                    <h3 class="service-title">{{ service.title }}</h3>
+                    <p class="service-desc">{{ service.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="map-section">
+            <h2>🗺️ موقعیت مکانی</h2>
+            <p style="text-align: center; font-size: 1.1em; margin-bottom: 15px;">
+                {{ gym.address.full }}
+            </p>
+            <div style="text-align: center;">
+                <a href="https://www.google.com/maps/search/{{ gym.address.full }}" 
+                   target="_blank" 
+                   class="map-link">
+                    📍 مشاهده روی نقشه گوگل
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2024 {{ gym.name }}. تمامی حقوق محفوظ است.</p>
+            <div class="social-links">
+                <a href="{{ gym.social_media.instagram }}" target="_blank">📷</a>
+                <a href="{{ gym.social_media.telegram }}" target="_blank">✈️</a>
+                <a href="{{ gym.social_media.website }}" target="_blank">🌐</a>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}About Us - Behshad Insurance{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="page-header">
+    <div class="container">
+        <h1>About Behshad Insurance</h1>
+        <p>Your trusted partner for engineering insurance in Texas</p>
+    </div>
+</section>
+
+<!-- About Content Section -->
+<section class="about-content">
+    <div class="container">
+        <div class="about-intro">
+            <h2>Protecting Engineering Excellence Since 2009</h2>
+            <p class="lead">Behshad Insurance has been a leading provider of engineering insurance solutions in Texas, serving construction companies, engineering firms, architectural practices, and related professionals across the state.</p>
+            <p>We understand the unique risks and challenges faced by engineering and construction professionals. Our specialized knowledge and tailored insurance products ensure that our clients have the protection they need to focus on what they do best—delivering exceptional engineering projects.</p>
+        </div>
+
+        <div class="about-values">
+            <h2>Our Core Values</h2>
+            <div class="values-grid">
+                <div class="value-card">
+                    <div class="value-icon">🎯</div>
+                    <h3>Integrity</h3>
+                    <p>We conduct business with the highest ethical standards and transparency in all our dealings.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">💪</div>
+                    <h3>Reliability</h3>
+                    <p>Our clients trust us to be there when they need us most, with fast claims processing and unwavering support.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">🧠</div>
+                    <h3>Expertise</h3>
+                    <p>Deep industry knowledge allows us to provide insights and coverage that truly protects your business.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon">🤝</div>
+                    <h3>Partnership</h3>
+                    <p>We build long-term relationships with our clients, understanding their business and growing together.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="about-stats">
+            <h2>Our Track Record</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number">500+</span>
+                    <span class="stat-label">Satisfied Clients</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">$2B+</span>
+                    <span class="stat-label">Projects Insured</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">15+</span>
+                    <span class="stat-label">Years in Business</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">98%</span>
+                    <span class="stat-label">Client Retention Rate</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">24/7</span>
+                    <span class="stat-label">Claims Support</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">A+</span>
+                    <span class="stat-label">Financial Rating</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="about-mission">
+            <div class="mission-content">
+                <h2>Our Mission</h2>
+                <p>To provide comprehensive, affordable, and reliable engineering insurance solutions that empower Texas engineering and construction professionals to pursue their projects with confidence. We are committed to understanding our clients' unique needs and delivering personalized service that goes beyond just selling insurance.</p>
+            </div>
+            <div class="mission-content">
+                <h2>Our Vision</h2>
+                <p>To be the most trusted and respected engineering insurance provider in Texas, recognized for our expertise, customer service, and commitment to protecting the engineering and construction industry.</p>
+            </div>
+        </div>
+
+        <div class="about-team">
+            <h2>Why Choose Behshad Insurance?</h2>
+            <div class="reasons-grid">
+                <div class="reason-item">
+                    <h3>🏆 Specialized Expertise</h3>
+                    <p>Our team has deep knowledge of engineering and construction risks, ensuring you get the right coverage for your specific needs.</p>
+                </div>
+                <div class="reason-item">
+                    <h3>⚡ Fast Claims Processing</h3>
+                    <p>We understand that time is critical. Our streamlined claims process gets you back on track quickly.</p>
+                </div>
+                <div class="reason-item">
+                    <h3>💰 Competitive Pricing</h3>
+                    <p>We work with multiple carriers to find you the best coverage at the most competitive rates.</p>
+                </div>
+                <div class="reason-item">
+                    <h3>📋 Comprehensive Coverage</h3>
+                    <p>From professional liability to workers' compensation, we offer a full range of insurance products for engineering professionals.</p>
+                </div>
+                <div class="reason-item">
+                    <h3>🤝 Personalized Service</h3>
+                    <p>Every client gets a dedicated account manager who understands your business and is available when you need them.</p>
+                </div>
+                <div class="reason-item">
+                    <h3>🏅 Licensed & Trusted</h3>
+                    <p>Fully licensed in Texas with an A+ financial rating, ensuring you're working with a stable and reliable partner.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="about-cta">
+            <h2>Ready to Work With Us?</h2>
+            <p>Join hundreds of engineering professionals who trust Behshad Insurance to protect their businesses.</p>
+            <div class="cta-buttons">
+                <a href="{{ url_for('quote') }}" class="btn btn-primary btn-large">Get a Free Quote</a>
+                <a href="{{ url_for('contact') }}" class="btn btn-outline btn-large">Contact Our Team</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

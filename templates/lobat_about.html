@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'fa' %}درباره من{% else %}About Me{% endif %} - {{ info.name }}</title>
+    <link rel="stylesheet" href="/static/css/lobat.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        nav {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border-radius: 15px;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #667eea;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        nav a:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-align: center;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.1em;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .bio-text {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 12px;
+            font-size: 1.2em;
+            line-height: 2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Language Switcher -->
+        <div class="language-switcher" style="position: fixed; top: 20px; {% if lang == 'fa' %}left{% else %}right{% endif %}: 20px; z-index: 1000; background: white; padding: 10px; border-radius: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+            <a href="/set_language/fa" style="text-decoration: none; padding: 8px 15px; border-radius: 20px; margin: 0 5px; font-weight: bold; {% if lang == 'fa' %}background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;{% else %}color: #667eea;{% endif %}">فارسی</a>
+            <a href="/set_language/en" style="text-decoration: none; padding: 8px 15px; border-radius: 20px; margin: 0 5px; font-weight: bold; {% if lang == 'en' %}background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;{% else %}color: #667eea;{% endif %}">English</a>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="/">{{ info.nav.home }}</a></li>
+                <li><a href="/about">{{ info.nav.about }}</a></li>
+                <li><a href="/experience">{{ info.nav.experience }}</a></li>
+                <li><a href="/contact">{{ info.nav.contact }}</a></li>
+            </ul>
+        </nav>
+
+        <div class="section">
+            <h1>{{ info.nav.about }}</h1>
+            <div class="bio-text">
+                {% if lang == 'fa' %}
+                <p>
+                    من <strong>{{ info.name }}</strong>، معاون تجاری در شرکت <strong>{{ info.company }}</strong> (اولین اپراتور مجازی ایران) هستم.
+                </p>
+                <p>
+                    با بیش از {{ info.experience_years }} سابقه در {{ info.industry }}، در زمینه مدیریت تجاری، بازاریابی دیجیتال و استراتژی‌های کسب‌وکار تخصص دارم.
+                </p>
+                <p>
+                    تحصیلات من شامل کارشناس ارشد مدیریت فناوری اطلاعات و MBA بازاریابی است که پایه‌های علمی قوی برای فعالیت در صنعت تلکام را برایم فراهم کرده است.
+                </p>
+                <p>
+                    در حال حاضر، به عنوان معاون تجاری در سامانتل، مسئولیت رهبری تیم تجاری و توسعه استراتژی‌های بازاریابی را بر عهده دارم. یکی از دستاوردهای مهم من، سرپرستی و اجرای کمپین موفق "۹واره سامانتل" در آذرماه ۱۳۹۹ بود که با هدف ایجاد حس خوب بین مشتریان و ارائه جوایز ارزنده برگزار شد.
+                </p>
+                {% else %}
+                <p>
+                    I am <strong>{{ info.name }}</strong>, Commercial Vice President at <strong>{{ info.company }}</strong> (Iran's First Virtual Operator).
+                </p>
+                <p>
+                    With {{ info.experience_years }} of experience in the {{ info.industry }}, I specialize in business management, digital marketing, and business strategy.
+                </p>
+                <p>
+                    My education includes a Master's degree in Technology Management and an MBA in Marketing, which have provided me with a strong scientific foundation for working in the telecom industry.
+                </p>
+                <p>
+                    Currently, as Commercial Vice President at SamanTel, I am responsible for leading the commercial team and developing marketing strategies. One of my significant achievements was leading and executing the successful "SamanTel 9th Campaign" in December 2020, which was held with the goal of creating a positive feeling among customers and offering valuable prizes.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>{{ info.labels.interests }}</h2>
+            <ul style="list-style: none; padding: 0;">
+                {% for interest in info.interests %}
+                <li style="padding: 15px; margin: 10px 0; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 8px; font-size: 1.1em;">
+                    ✨ {{ interest }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+

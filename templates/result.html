@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نتیجه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .status-adult {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-minor {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .emoji {
+            font-size: 24px;
+            margin-left: 8px;
+        }
+        
+        .uploaded-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .age-comparison {
+            background: #e8f4f8;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border-right: 4px solid #667eea;
+        }
+        
+        .match-excellent {
+            background: #d4edda;
+            border-right-color: #28a745;
+        }
+        
+        .match-good {
+            background: #d1ecf1;
+            border-right-color: #17a2b8;
+        }
+        
+        .match-fair {
+            background: #fff3cd;
+            border-right-color: #ffc107;
+        }
+        
+        .match-poor {
+            background: #f8d7da;
+            border-right-color: #dc3545;
+        }
+        
+        .match-no-face {
+            background: #e2e3e5;
+            border-right-color: #6c757d;
+        }
+        
+        .age-difference {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ اطلاعات شما ثبت شد!</h1>
+        
+        {% if image_filename %}
+        <div style="margin-bottom: 20px;">
+            <img src="{{ url_for('static', filename='uploads/' + image_filename) }}" 
+                 alt="عکس آپلود شده" 
+                 class="uploaded-image">
+        </div>
+        {% endif %}
+        
+        <div class="result-box">
+            <div class="info-item">
+                <span class="info-label">نام:</span>
+                <span class="info-value">{{ name }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">قد:</span>
+                <span class="info-value">{{ "%.2f"|format(height) }} متر</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">سن اعلام شده:</span>
+                <span class="info-value">{{ age }} سال</span>
+            </div>
+            
+            {% if estimated_age %}
+            <div class="info-item">
+                <span class="info-label">سن تشخیص داده شده از عکس:</span>
+                <span class="info-value">{{ estimated_age }} سال</span>
+            </div>
+            {% endif %}
+            
+            <div style="margin-top: 20px;">
+                <div class="info-label">وضعیت:</div>
+                <span class="status-badge status-{{ status_en }}">
+                    {% if status_en == 'adult' %}
+                        بزرگسال 👤
+                    {% else %}
+                        نوجوان 🎓
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        
+        {% if estimated_age %}
+        <div class="age-comparison match-{{ match_status }}">
+            <h3 style="margin-bottom: 15px; color: #333;">🔍 نتیجه تطبیق سن:</h3>
+            <p style="font-size: 18px; font-weight: 600; color: #333;">
+                {% if match_status == 'excellent' %}
+                    ✅ تطبیق عالی!
+                {% elif match_status == 'good' %}
+                    👍 تطبیق خوب
+                {% elif match_status == 'fair' %}
+                    ⚠️ تطبیق متوسط
+                {% elif match_status == 'poor' %}
+                    ❌ تطبیق ضعیف
+                {% else %}
+                    ⚠️ چهره تشخیص داده نشد
+                {% endif %}
+            </p>
+            <p style="margin-top: 10px; color: #555;">
+                {% if match_status != 'no_face' %}
+                    سن اعلام شده: <strong>{{ age }} سال</strong><br>
+                    سن تشخیص داده شده: <strong>{{ estimated_age }} سال</strong><br>
+                    <span class="age-difference">
+                        تفاوت: <strong>{{ (age - estimated_age)|abs }} سال</strong>
+                    </span>
+                {% else %}
+                    متأسفانه چهره در عکس تشخیص داده نشد. لطفاً عکس واضح‌تری با چهره کامل آپلود کنید.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+        
+        <p style="color: #666; margin-bottom: 20px;">
+            {% if status_en == 'adult' %}
+                شما بزرگسال هستید! ✅
+            {% else %}
+                شما نوجوان هستید! 🎓
+            {% endif %}
+        </p>
+        
+        <a href="/" class="btn">🔄 بازگشت به فرم</a>
+    </div>
+</body>
+</html>
+

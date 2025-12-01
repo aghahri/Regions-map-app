@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us - Behshad Insurance{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="page-header">
+    <div class="container">
+        <h1>Contact Us</h1>
+        <p>Get in touch with our insurance experts</p>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-section">
+    <div class="container">
+        <div class="contact-wrapper">
+            <div class="contact-info">
+                <h2>Get In Touch</h2>
+                <p>Have questions about our insurance services? Our team is here to help. Reach out to us through any of the following methods.</p>
+                
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <div class="contact-icon">📍</div>
+                        <div class="contact-text">
+                            <h3>Office Location</h3>
+                            <p>Texas, USA</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">📞</div>
+                        <div class="contact-text">
+                            <h3>Phone</h3>
+                            <p>(555) 123-4567</p>
+                            <p>Mon-Fri: 9:00 AM - 5:00 PM CST</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">✉️</div>
+                        <div class="contact-text">
+                            <h3>Email</h3>
+                            <p>info@behshadinsurance.com</p>
+                            <p>We respond within 24 hours</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">🕒</div>
+                        <div class="contact-text">
+                            <h3>Business Hours</h3>
+                            <p>Monday - Friday: 9:00 AM - 5:00 PM</p>
+                            <p>Saturday - Sunday: Closed</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="contact-social">
+                    <h3>Follow Us</h3>
+                    <div class="social-links">
+                        <a href="#" class="social-link">LinkedIn</a>
+                        <a href="#" class="social-link">Twitter</a>
+                        <a href="#" class="social-link">Facebook</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-form-wrapper">
+                <h2>Send Us a Message</h2>
+                <form class="contact-form" method="POST" action="{{ url_for('contact') }}">
+                    <div class="form-group">
+                        <label for="name">Full Name *</label>
+                        <input type="text" id="name" name="name" required placeholder="John Doe">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" required placeholder="john.doe@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="service_type">Service Interest</label>
+                        <select id="service_type" name="service_type">
+                            <option value="General Inquiry">General Inquiry</option>
+                            <option value="Professional Liability">Professional Liability</option>
+                            <option value="Errors & Omissions">Errors & Omissions</option>
+                            <option value="General Liability">General Liability</option>
+                            <option value="Workers' Compensation">Workers' Compensation</option>
+                            <option value="Contractors Insurance">Contractors Insurance</option>
+                            <option value="Business Property">Business Property</option>
+                            <option value="Quote Request">Quote Request</option>
+                            <option value="Claims">Claims</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="message">Message *</label>
+                        <textarea id="message" name="message" rows="5" required placeholder="Tell us how we can help you..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Map Section (Placeholder) -->
+<section class="map-section">
+    <div class="container">
+        <h2>Find Us</h2>
+        <div class="map-placeholder">
+            <p>📍 Texas, USA</p>
+            <p>Map integration can be added here with Google Maps or similar service</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

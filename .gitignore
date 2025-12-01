@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Flask
+instance/
+.webassets-cache
+
+# Static files (uploaded images)
+static/images/*.jpg
+static/images/*.png
+static/images/*.gif
+static/images/*.webp
+!static/images/.gitkeep
+
+# Uploads
+uploads/
+*.zip
+*.geojson
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# History file
+history.json
