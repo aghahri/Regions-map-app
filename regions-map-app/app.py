@@ -1521,25 +1521,49 @@ def api_get_neighborhood():
                     district = None
                     city = None
                     
-                    # جستجوی نام محله
+                    # جستجوی نام محله - ابتدا فیلدهای استاندارد
                     for field in NEIGHBORHOOD_FIELDS:
                         if field in props and props[field]:
                             neighborhood = str(props[field])
                             break
                     
-                    # اگر محله پیدا نشد، جستجوی گسترده‌تر
+                    # اگر محله پیدا نشد، جستجوی هوشمند در همه فیلدها
                     if not neighborhood:
-                        # جستجو در همه فیلدها برای پیدا کردن نام محله
+                        # جستجو برای فیلدهایی که نامشان شامل "name" یا "mahal" است
                         exclude_fields = ['geometry', 'tootapp_url', 'district', 'region', 'city', 'ostan', 'id', 'ID']
+                        neighborhood_candidates = []
+                        
                         for key, value in props.items():
-                            if key.lower() not in [f.lower() for f in exclude_fields]:
-                                value_str = str(value).strip()
-                                # اگر مقدار خالی نباشد و عدد نباشد (احتمالاً نام است)
-                                if value_str and not value_str.replace('.', '').replace('-', '').isdigit():
-                                    # بررسی اینکه نام محله باشد (نه مختصات یا کد)
-                                    if len(value_str) > 2 and len(value_str) < 100:
-                                        neighborhood = value_str
-                                        break
+                            if key.lower() in [f.lower() for f in exclude_fields]:
+                                continue
+                            
+                            key_lower = key.lower()
+                            value_str = str(value).strip() if value else ""
+                            
+                            # بررسی اینکه نام فیلد شامل "name" یا "mahal" باشد
+                            if value_str and ('name' in key_lower or 'mahal' in key_lower):
+                                # بررسی اینکه مقدار معتبر باشد (نه عدد خالص)
+                                if not value_str.replace('.', '').replace('-', '').isdigit():
+                                    if len(value_str) > 1 and len(value_str) < 200:
+                                        neighborhood_candidates.append((key, value_str))
+                        
+                        # اگر کاندید پیدا شد، اولی را انتخاب می‌کنیم
+                        if neighborhood_candidates:
+                            neighborhood = neighborhood_candidates[0][1]
+                    
+                    # اگر هنوز پیدا نشد، جستجوی عمومی در همه فیلدها
+                    if not neighborhood:
+                        exclude_fields = ['geometry', 'tootapp_url', 'district', 'region', 'city', 'ostan', 'id', 'ID', 'lat', 'lon', 'longitude', 'latitude']
+                        for key, value in props.items():
+                            if key.lower() in [f.lower() for f in exclude_fields]:
+                                continue
+                            value_str = str(value).strip() if value else ""
+                            # اگر مقدار خالی نباشد و عدد نباشد (احتمالاً نام است)
+                            if value_str and not value_str.replace('.', '').replace('-', '').isdigit():
+                                # بررسی اینکه نام محله باشد (نه مختصات یا کد)
+                                if len(value_str) > 2 and len(value_str) < 100:
+                                    neighborhood = value_str
+                                    break
                     
                     # جستجوی منطقه
                     for field in DISTRICT_FIELDS:
