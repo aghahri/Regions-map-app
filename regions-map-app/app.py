@@ -918,9 +918,9 @@ INDEX_TEMPLATE = """
     {% endif %}
     <section class="card">
       {% if summary %}
-      <button onclick="toggleSummary()" class="summary-toggle-btn">نمایش ویژگی‌های لایه</button>
+      <button onclick="toggleSummary()" class="summary-toggle-btn">اطلاعات محله</button>
       <div class="summary" id="summary-details" style="display: none;">
-        <strong>ویژگی‌های لایه:</strong>
+        <strong>اطلاعات محله:</strong>
         <p>تعداد عوارض: {{ summary.feature_count }}</p>
         <p>سیستم مختصات: {{ summary.crs }}</p>
         {% if summary.columns %}
@@ -1015,10 +1015,10 @@ INDEX_TEMPLATE = """
       const btn = document.querySelector('.summary-toggle-btn');
       if (summaryDiv.style.display === 'none') {
         summaryDiv.style.display = 'block';
-        btn.textContent = 'مخفی کردن ویژگی‌های لایه';
+        btn.textContent = 'مخفی کردن اطلاعات محله';
       } else {
         summaryDiv.style.display = 'none';
-        btn.textContent = 'نمایش ویژگی‌های لایه';
+        btn.textContent = 'اطلاعات محله';
       }
     }
 
