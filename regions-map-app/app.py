@@ -1163,6 +1163,7 @@ INDEX_TEMPLATE = """
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     if (geojsonData) {
       map.eachLayer(function(layer) {
@@ -1170,7 +1171,7 @@ INDEX_TEMPLATE = """
           map.removeLayer(layer);
         }
       });
-      const layer = L.geoJSON(geojsonData, {
+      mainLayer = L.geoJSON(geojsonData, {
         style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1 }; },
         onEachFeature: function(feature, layer) {
           if (feature.properties) {
@@ -1218,7 +1219,7 @@ INDEX_TEMPLATE = """
         }
       }).addTo(map);
       try {
-        map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+        map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
       } catch (err) {
         console.warn('Cannot fit bounds', err);
       }
@@ -1366,42 +1367,43 @@ INDEX_TEMPLATE = """
             
             const layer = L.geoJSON(geojsonData, {
               style: function(feature) {
-                // استایل برای نقاط (Point)
+                // استایل برای نقاط (Point) - این برای non-point features است
                 if (feature.geometry && feature.geometry.type === 'Point') {
                   return {
-                    radius: 8,
+                    radius: 10,
                     fillColor: '#ff6b6b',
                     color: '#d63031',
-                    weight: 2,
+                    weight: 3,
                     opacity: 1,
-                    fillOpacity: 0.8
+                    fillOpacity: 0.9
                   };
                 }
                 // استایل برای خطوط (LineString, MultiLineString)
                 if (feature.geometry && (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString')) {
                   return {
                     color: '#ff6b6b',
-                    weight: 3,
-                    opacity: 0.8
+                    weight: 4,
+                    opacity: 0.9
                   };
                 }
                 // استایل برای چندضلعی‌ها (Polygon, MultiPolygon)
                 return {
                   color: '#ff6b6b',
-                  weight: 2,
-                  fillOpacity: 0.4,
-                  fillColor: '#ff6b6b'
+                  weight: 3,
+                  fillOpacity: 0.5,
+                  fillColor: '#ff6b6b',
+                  opacity: 1
                 };
               },
               pointToLayer: function(feature, latlng) {
-                // برای نقاط از CircleMarker استفاده کن
+                // برای نقاط از CircleMarker استفاده کن با سایز بزرگتر
                 return L.circleMarker(latlng, {
-                  radius: 8,
+                  radius: 10,
                   fillColor: '#ff6b6b',
                   color: '#d63031',
-                  weight: 2,
+                  weight: 3,
                   opacity: 1,
-                  fillOpacity: 0.8
+                  fillOpacity: 0.9
                 });
               },
               onEachFeature: function(feature, layer) {
@@ -1454,25 +1456,46 @@ INDEX_TEMPLATE = """
             });
             
             layer.addTo(map);
+            
+            // آوردن لایر به جلو (بالای لایر محلات)
+            if (layer.bringToFront) {
+              layer.bringToFront();
+            }
+            
             featureLayers[featureId] = layer;
             
             console.log('Layer added to map, bounds:', layer.getBounds());
             console.log('Number of features in layer:', layer.getLayers().length);
             
+            // شمارش انواع مختلف عوارض
+            const layerTypes = {};
+            layer.eachLayer(function(l) {
+              const geomType = l.feature?.geometry?.type || 'unknown';
+              layerTypes[geomType] = (layerTypes[geomType] || 0) + 1;
+            });
+            console.log('Layer types:', layerTypes);
+            
             // نمایش پیام موفقیت
             const statusDiv = document.getElementById('featureUploadStatus');
             if (statusDiv) {
-              statusDiv.innerHTML = `<div class="success" style="margin-top: 1rem; padding: 0.5rem; background: #d4edda; color: #155724; border-radius: 6px;">عوارض با موفقیت نمایش داده شد (${layer.getLayers().length} عارضه)</div>`;
+              const typesSummary = Object.entries(layerTypes).map(([type, count]) => `${type}: ${count}`).join(', ');
+              statusDiv.innerHTML = `<div class="success" style="margin-top: 1rem; padding: 0.5rem; background: #d4edda; color: #155724; border-radius: 6px;">عوارض با موفقیت نمایش داده شد (${layer.getLayers().length} عارضه - ${typesSummary})</div>`;
               setTimeout(() => {
                 if (statusDiv) statusDiv.innerHTML = '';
-              }, 3000);
+              }, 5000);
             }
             
             // تنظیم view روی عوارض
             try {
               const bounds = layer.getBounds();
               if (bounds && bounds.isValid && bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                // اگر لایر محلات وجود دارد، bounds را با آن ترکیب کن
+                if (mainLayer) {
+                  const combinedBounds = bounds.extend(mainLayer.getBounds());
+                  map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+                } else {
+                  map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                }
               } else {
                 console.warn('Invalid bounds, cannot fit');
               }
