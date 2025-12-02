@@ -1443,18 +1443,44 @@ INDEX_TEMPLATE = """
                 geojsonData = JSON.parse(geojsonData);
               } catch (e) {
                 console.error('Error parsing GeoJSON string:', e);
+                alert('خطا در parse کردن GeoJSON: ' + e.message);
                 return;
               }
             }
             
             // بررسی ساختار GeoJSON
-            if (!geojsonData || (!geojsonData.features && !geojsonData.geometry)) {
+            if (!geojsonData) {
+              console.error('GeoJSON data is null or undefined');
+              alert('داده GeoJSON خالی است');
+              return;
+            }
+            
+            // بررسی اینکه آیا FeatureCollection است یا Feature
+            const isFeatureCollection = geojsonData.type === 'FeatureCollection' && Array.isArray(geojsonData.features);
+            const isFeature = geojsonData.type === 'Feature' && geojsonData.geometry;
+            const isGeometry = geojsonData.type && geojsonData.coordinates;
+            
+            if (!isFeatureCollection && !isFeature && !isGeometry) {
               console.error('Invalid GeoJSON structure:', geojsonData);
-              alert('ساختار GeoJSON نامعتبر است');
+              console.error('Type:', geojsonData.type);
+              console.error('Has features:', Array.isArray(geojsonData.features));
+              console.error('Has geometry:', !!geojsonData.geometry);
+              alert('ساختار GeoJSON نامعتبر است. نوع: ' + (geojsonData.type || 'نامشخص'));
+              return;
+            }
+            
+            // اگر FeatureCollection است، بررسی کن که features خالی نباشد
+            if (isFeatureCollection && geojsonData.features.length === 0) {
+              console.warn('FeatureCollection is empty');
+              alert('فایل GeoJSON خالی است (هیچ عارضه‌ای ندارد)');
               return;
             }
             
             console.log('Creating GeoJSON layer with data:', geojsonData);
+            console.log('GeoJSON type:', geojsonData.type);
+            if (isFeatureCollection) {
+              console.log('Number of features:', geojsonData.features.length);
+            }
             
             const layer = L.geoJSON(geojsonData, {
               style: function(feature) {
@@ -1546,6 +1572,13 @@ INDEX_TEMPLATE = """
               }
             });
             
+            // بررسی اینکه آیا لایر خالی است
+            if (!layer || layer.getLayers().length === 0) {
+              console.error('Layer is empty after creation');
+              alert('لایر خالی است. ممکن است مختصات خارج از محدوده نقشه باشد.');
+              return;
+            }
+            
             layer.addTo(map);
             
             // آوردن لایر به جلو (بالای لایر محلات)
@@ -1553,10 +1586,24 @@ INDEX_TEMPLATE = """
               layer.bringToFront();
             }
             
+            // همچنین هر لایر داخلی را به جلو بیاور
+            layer.eachLayer(function(l) {
+              if (l.bringToFront) {
+                l.bringToFront();
+              }
+            });
+            
             featureLayers[featureId] = layer;
             
-            console.log('Layer added to map, bounds:', layer.getBounds());
+            const bounds = layer.getBounds();
+            console.log('Layer added to map');
+            console.log('Bounds:', bounds);
             console.log('Number of features in layer:', layer.getLayers().length);
+            
+            // بررسی اینکه bounds معتبر است
+            if (!bounds || !bounds.isValid || !bounds.isValid()) {
+              console.warn('Layer bounds are invalid');
+            }
             
             // شمارش انواع مختلف عوارض
             const layerTypes = {};
