@@ -91,6 +91,50 @@ def is_allowed(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _clean_geojson_for_json(geojson: Dict) -> Dict:
+    """پاکسازی GeoJSON از انواع غیرقابل JSON serialization (مثل Timestamp)"""
+    import pandas as pd
+    from datetime import datetime, date
+    
+    if not isinstance(geojson, dict):
+        return geojson
+    
+    # کپی کردن برای عدم تغییر داده اصلی
+    try:
+        cleaned = json.loads(json.dumps(geojson, default=str))
+    except (TypeError, ValueError):
+        # اگر هنوز مشکل داشت، دستی پاکسازی کن
+        cleaned = json.loads(json.dumps(geojson, default=lambda x: str(x) if hasattr(x, '__str__') else None))
+    
+    # اگر cleaned یک string است (به خاطر default=str)، دوباره parse کن
+    if isinstance(cleaned, str):
+        cleaned = json.loads(cleaned)
+    
+    # پاکسازی عمیق‌تر در features
+    if "features" in cleaned:
+        for feature in cleaned["features"]:
+            if "properties" in feature:
+                props = feature["properties"]
+                for key, value in list(props.items()):
+                    # تبدیل Timestamp و datetime به string
+                    if isinstance(value, (pd.Timestamp, datetime, date)):
+                        props[key] = str(value)
+                    # تبدیل numpy types به Python native types
+                    elif hasattr(value, 'item'):  # numpy types
+                        try:
+                            props[key] = value.item()
+                        except (ValueError, AttributeError):
+                            props[key] = str(value)
+                    # تبدیل float64, int64 و غیره
+                    elif isinstance(value, (pd.Series, pd.DataFrame)):
+                        props[key] = str(value)
+                    # تبدیل numpy.datetime64
+                    elif hasattr(value, 'dtype') and 'datetime' in str(value.dtype):
+                        props[key] = str(value)
+    
+    return cleaned
+
+
 def _load_geojson_from_geojson(file_obj: FileStorage) -> Dict:
     payload = file_obj.read()
     if not payload:
@@ -474,43 +518,6 @@ def load_feature_data(feature_id: str) -> Optional[Dict]:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
         return None
-
-
-def _clean_geojson_for_json(geojson: Dict) -> Dict:
-    """پاکسازی GeoJSON از انواع غیرقابل JSON serialization (مثل Timestamp)"""
-    import pandas as pd
-    from datetime import datetime, date
-    
-    if not isinstance(geojson, dict):
-        return geojson
-    
-    # کپی کردن برای عدم تغییر داده اصلی
-    cleaned = json.loads(json.dumps(geojson, default=str))
-    
-    # اگر cleaned یک string است (به خاطر default=str)، دوباره parse کن
-    if isinstance(cleaned, str):
-        cleaned = json.loads(cleaned)
-    
-    # پاکسازی عمیق‌تر در features
-    if "features" in cleaned:
-        for feature in cleaned["features"]:
-            if "properties" in feature:
-                props = feature["properties"]
-                for key, value in list(props.items()):
-                    # تبدیل Timestamp و datetime به string
-                    if isinstance(value, (pd.Timestamp, datetime, date)):
-                        props[key] = str(value)
-                    # تبدیل numpy types به Python native types
-                    elif hasattr(value, 'item'):  # numpy types
-                        try:
-                            props[key] = value.item()
-                        except (ValueError, AttributeError):
-                            props[key] = str(value)
-                    # تبدیل float64, int64 و غیره
-                    elif isinstance(value, (pd.Series, pd.DataFrame)):
-                        props[key] = str(value)
-    
-    return cleaned
 
 
 def save_feature_data(feature_id: str, geojson: Dict, summary: Dict, original_filename: str, map_id: str, feature_name: str) -> None:
