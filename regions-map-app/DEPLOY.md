@@ -19,8 +19,9 @@ git push
 4. تنظیمات:
    - **Name**: `regions-map-app`
    - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --workers 2 --bind 0.0.0.0:$PORT app:app`
+   - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start Command**: `cd regions-map-app && gunicorn --workers 2 --bind 0.0.0.0:$PORT app:app`
+   - **Root Directory**: `regions-map-app` (اگر پروژه در subdirectory است)
 
 ### قدم 3: Environment Variables
 
