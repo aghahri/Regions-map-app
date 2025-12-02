@@ -18,9 +18,10 @@ import hashlib
 
 try:
     import geopandas as gpd
+    from shapely.geometry import Point
 except ImportError as exc:  # pragma: no cover - fails fast on missing deps
     raise RuntimeError("لطفاً بسته GeoPandas را نصب کنید (pip install geopandas).") from exc
-from flask import Flask, render_template_string, request, session, redirect, url_for
+from flask import Flask, render_template_string, request, session, redirect, url_for, jsonify
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -1419,6 +1420,179 @@ def admin_delete_user(username: str):
         return redirect(url_for("admin_manage_users") + f"?success={message}")
     else:
         return redirect(url_for("admin_manage_users") + f"?error={message}")
+
+
+@app.route("/api/neighborhood", methods=["GET", "POST"])
+def api_get_neighborhood():
+    """
+    API برای دریافت نام محله بر اساس مختصات جغرافیایی
+    
+    Parameters:
+        - lat: عرض جغرافیایی (latitude)
+        - lon: طول جغرافیایی (longitude)
+        - map_id: (اختیاری) شناسه نقشه خاص. اگر نباشد، در همه نقشه‌ها جستجو می‌کند
+    
+    Returns JSON:
+        {
+            "success": true/false,
+            "neighborhood": "نام محله",
+            "district": "نام منطقه",
+            "city": "نام شهر",
+            "map_id": "شناسه نقشه",
+            "map_name": "نام نقشه",
+            "tootapp_url": "لینک توت‌اپ (اگر موجود باشد)"
+        }
+    """
+    try:
+        # دریافت پارامترها
+        if request.method == "POST":
+            data = request.get_json() or request.form
+            lat = data.get("lat") or data.get("latitude")
+            lon = data.get("lon") or data.get("longitude") or data.get("lng")
+            map_id = data.get("map_id")
+        else:  # GET
+            lat = request.args.get("lat") or request.args.get("latitude")
+            lon = request.args.get("lon") or request.args.get("longitude") or request.args.get("lng")
+            map_id = request.args.get("map_id")
+        
+        # بررسی پارامترهای ورودی
+        if not lat or not lon:
+            return jsonify({
+                "success": False,
+                "error": "پارامترهای lat و lon الزامی هستند"
+            }), 400
+        
+        try:
+            lat = float(lat)
+            lon = float(lon)
+        except (ValueError, TypeError):
+            return jsonify({
+                "success": False,
+                "error": "lat و lon باید عدد باشند"
+            }), 400
+        
+        # ایجاد نقطه از مختصات
+        point = Point(lon, lat)  # توجه: GeoJSON از [lon, lat] استفاده می‌کند
+        
+        # جستجو در نقشه‌ها
+        history = load_history()
+        maps_to_search = []
+        
+        if map_id:
+            # جستجو در نقشه خاص
+            map_data = load_map_data(map_id)
+            if map_data:
+                maps_to_search = [(map_id, map_data)]
+        else:
+            # جستجو در همه نقشه‌ها
+            for item in history:
+                item_map_id = item.get("map_id")
+                if item_map_id:
+                    map_data = load_map_data(item_map_id)
+                    if map_data:
+                        maps_to_search.append((item_map_id, map_data))
+        
+        # جستجو در هر نقشه
+        for current_map_id, map_data in maps_to_search:
+            geojson = map_data.get("geojson")
+            if not geojson or not geojson.get("features"):
+                continue
+            
+            # تبدیل GeoJSON به GeoDataFrame برای جستجوی سریع
+            try:
+                gdf = gpd.GeoDataFrame.from_features(geojson["features"], crs="EPSG:4326")
+                
+                # پیدا کردن feature که شامل این نقطه است
+                mask = gdf.contains(point)
+                matching_features = gdf[mask]
+                
+                if not matching_features.empty:
+                    # اولین feature پیدا شده
+                    feature_series = matching_features.iloc[0]
+                    props = feature_series.to_dict()
+                    
+                    # تبدیل به dict برای get_feature_identifier
+                    feature_dict = {
+                        "properties": {k: v for k, v in props.items() if k != "geometry"}
+                    }
+                    
+                    # استخراج اطلاعات
+                    neighborhood = None
+                    district = None
+                    city = None
+                    
+                    # جستجوی نام محله
+                    for field in NEIGHBORHOOD_FIELDS:
+                        if field in props and props[field]:
+                            neighborhood = str(props[field])
+                            break
+                    
+                    # جستجوی منطقه
+                    for field in DISTRICT_FIELDS:
+                        if field in props and props[field]:
+                            district = str(props[field])
+                            break
+                    
+                    # جستجوی شهر
+                    for field in CITY_FIELDS:
+                        if field in props and props[field]:
+                            city = str(props[field])
+                            break
+                    
+                    # پیدا کردن map_name
+                    map_info = next((item for item in history if item.get("map_id") == current_map_id), None)
+                    map_name = map_info.get("map_name") if map_info else map_info.get("original_filename", "") if map_info else ""
+                    
+                    # بارگذاری لینک توت‌اپ
+                    links = load_links(current_map_id)
+                    feature_id = get_feature_identifier(feature_dict)
+                    tootapp_url = None
+                    
+                    if feature_id and feature_id in links:
+                        saved_link = links[feature_id]
+                        if saved_link.startswith("http"):
+                            tootapp_url = saved_link
+                        else:
+                            tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
+                    else:
+                        # استفاده از slug از properties
+                        slug = _resolve_group_slug(props)
+                        if slug:
+                            tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/{slug.lstrip('/')}"
+                    
+                    return jsonify({
+                        "success": True,
+                        "neighborhood": neighborhood,
+                        "district": district,
+                        "city": city,
+                        "map_id": current_map_id,
+                        "map_name": map_name,
+                        "tootapp_url": tootapp_url,
+                        "coordinates": {
+                            "lat": lat,
+                            "lon": lon
+                        }
+                    }), 200
+                    
+            except Exception as e:
+                # اگر GeoPandas خطا داد، با روش ساده‌تر امتحان می‌کنیم
+                continue
+        
+        # اگر هیچ محله‌ای پیدا نشد
+        return jsonify({
+            "success": False,
+            "error": "محله‌ای برای این مختصات پیدا نشد",
+            "coordinates": {
+                "lat": lat,
+                "lon": lon
+            }
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"خطا در پردازش درخواست: {str(e)}"
+        }), 500
 
 
 if __name__ == "__main__":
