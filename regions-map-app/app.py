@@ -1222,50 +1222,163 @@ INDEX_TEMPLATE = """
         return; // قبلاً بارگذاری شده
       }
 
+      console.log('Loading feature:', featureId);
+      
       fetch(`/api/features/${featureId}`)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log('Feature data received:', data);
+          
           if (data.success && data.geojson) {
-            const layer = L.geoJSON(data.geojson, {
-              style: function() { 
-                return { 
-                  color: '#ff6b6b', 
-                  weight: 2, 
-                  fillOpacity: 0.3,
+            let geojsonData = data.geojson;
+            
+            // اگر geojson یک string است، parse کن
+            if (typeof geojsonData === 'string') {
+              try {
+                geojsonData = JSON.parse(geojsonData);
+              } catch (e) {
+                console.error('Error parsing GeoJSON string:', e);
+                return;
+              }
+            }
+            
+            // بررسی ساختار GeoJSON
+            if (!geojsonData || (!geojsonData.features && !geojsonData.geometry)) {
+              console.error('Invalid GeoJSON structure:', geojsonData);
+              alert('ساختار GeoJSON نامعتبر است');
+              return;
+            }
+            
+            console.log('Creating GeoJSON layer with data:', geojsonData);
+            
+            const layer = L.geoJSON(geojsonData, {
+              style: function(feature) {
+                // استایل برای نقاط (Point)
+                if (feature.geometry && feature.geometry.type === 'Point') {
+                  return {
+                    radius: 8,
+                    fillColor: '#ff6b6b',
+                    color: '#d63031',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                  };
+                }
+                // استایل برای خطوط (LineString, MultiLineString)
+                if (feature.geometry && (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString')) {
+                  return {
+                    color: '#ff6b6b',
+                    weight: 3,
+                    opacity: 0.8
+                  };
+                }
+                // استایل برای چندضلعی‌ها (Polygon, MultiPolygon)
+                return {
+                  color: '#ff6b6b',
+                  weight: 2,
+                  fillOpacity: 0.4,
                   fillColor: '#ff6b6b'
-                }; 
+                };
+              },
+              pointToLayer: function(feature, latlng) {
+                // برای نقاط از CircleMarker استفاده کن
+                return L.circleMarker(latlng, {
+                  radius: 8,
+                  fillColor: '#ff6b6b',
+                  color: '#d63031',
+                  weight: 2,
+                  opacity: 1,
+                  fillOpacity: 0.8
+                });
               },
               onEachFeature: function(feature, layer) {
                 if (feature.properties) {
                   const props = feature.properties;
                   const popupItems = [];
+                  
+                  // نمایش نام یا عنوان عارضه
+                  const nameFields = ['name', 'نام', 'title', 'عنوان', 'shop', 'فروشگاه', 'store'];
+                  let name = null;
+                  for (const field of nameFields) {
+                    for (const key in props) {
+                      if (key.toLowerCase().includes(field.toLowerCase())) {
+                        name = props[key];
+                        break;
+                      }
+                    }
+                    if (name) break;
+                  }
+                  
+                  if (name) {
+                    popupItems.push(`<strong style="font-size: 1.1em; color: #2a9d8f;">${name}</strong>`);
+                  }
+                  
+                  // نمایش سایر ویژگی‌ها
                   for (const key in props) {
                     if (key.toLowerCase() !== 'geometry') {
                       const value = props[key];
                       if (value !== undefined && value !== null && String(value).trim() !== '') {
-                        popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                        // نادیده گرفتن فیلدهایی که قبلاً نمایش داده شده‌اند
+                        let skip = false;
+                        for (const field of nameFields) {
+                          if (key.toLowerCase().includes(field.toLowerCase())) {
+                            skip = true;
+                            break;
+                          }
+                        }
+                        if (!skip) {
+                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                        }
                       }
                     }
                   }
+                  
                   if (popupItems.length > 0) {
                     layer.bindPopup(popupItems.join('<br/>'));
                   }
                 }
               }
-            }).addTo(map);
+            });
             
+            layer.addTo(map);
             featureLayers[featureId] = layer;
+            
+            console.log('Layer added to map, bounds:', layer.getBounds());
+            console.log('Number of features in layer:', layer.getLayers().length);
+            
+            // نمایش پیام موفقیت
+            const statusDiv = document.getElementById('featureUploadStatus');
+            if (statusDiv) {
+              statusDiv.innerHTML = `<div class="success" style="margin-top: 1rem; padding: 0.5rem; background: #d4edda; color: #155724; border-radius: 6px;">عوارض با موفقیت نمایش داده شد (${layer.getLayers().length} عارضه)</div>`;
+              setTimeout(() => {
+                if (statusDiv) statusDiv.innerHTML = '';
+              }, 3000);
+            }
             
             // تنظیم view روی عوارض
             try {
-              map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+              const bounds = layer.getBounds();
+              if (bounds && bounds.isValid && bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+              } else {
+                console.warn('Invalid bounds, cannot fit');
+              }
             } catch (err) {
-              console.warn('Cannot fit bounds', err);
+              console.warn('Cannot fit bounds:', err);
             }
+          } else {
+            console.error('No GeoJSON data in response:', data);
+            alert('داده‌ای برای نمایش یافت نشد. لطفاً فایل GeoJSON را بررسی کنید.');
           }
         })
         .catch(error => {
           console.error('Error loading feature:', error);
+          alert('خطا در بارگذاری عارضه: ' + error.message);
         });
     }
 
@@ -1957,9 +2070,29 @@ def api_get_feature(feature_id: str):
     if not feature_data:
         return jsonify({"success": False, "error": "عارضه پیدا نشد"}), 404
     
+    geojson = feature_data.get("geojson")
+    
+    # اطمینان از اینکه GeoJSON یک dict معتبر است
+    if not geojson:
+        return jsonify({"success": False, "error": "داده GeoJSON یافت نشد"}), 404
+    
+    # بررسی ساختار GeoJSON
+    if isinstance(geojson, dict):
+        # اگر GeoJSON یک dict است، مستقیماً برگردان
+        if "type" not in geojson:
+            return jsonify({"success": False, "error": "ساختار GeoJSON نامعتبر است"}), 400
+    elif isinstance(geojson, str):
+        # اگر GeoJSON یک string است، parse کن
+        try:
+            geojson = json.loads(geojson)
+        except json.JSONDecodeError:
+            return jsonify({"success": False, "error": "خطا در parse کردن GeoJSON"}), 400
+    else:
+        return jsonify({"success": False, "error": "نوع داده GeoJSON نامعتبر است"}), 400
+    
     return jsonify({
         "success": True,
-        "geojson": feature_data.get("geojson"),
+        "geojson": geojson,
         "summary": feature_data.get("summary"),
         "feature_name": feature_data.get("feature_name"),
         "upload_date": feature_data.get("upload_date"),
