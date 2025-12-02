@@ -238,7 +238,12 @@ def _load_geojson_from_shapefile(file_obj: FileStorage) -> Dict:
     else:
         gdf = gdf.set_crs(epsg=4326, allow_override=True)
 
-    geojson = json.loads(gdf.to_json())
+    # تبدیل به GeoJSON و پاکسازی انواع غیرقابل JSON serialization
+    geojson_str = gdf.to_json(default_handler=str)
+    geojson = json.loads(geojson_str)
+    
+    # پاکسازی بیشتر برای اطمینان
+    geojson = _clean_geojson_for_json(geojson)
 
     shutil.rmtree(work_dir, ignore_errors=True)
     return geojson
@@ -353,14 +358,19 @@ def save_history(history: List[Dict]) -> None:
 def save_map_data(map_id: str, geojson: Dict, summary: Dict, original_filename: str) -> None:
     """ذخیره داده‌های نقشه در فایل JSON"""
     map_file = STORAGE_DIR / f"{map_id}.json"
+    
+    # پاکسازی GeoJSON از انواع غیرقابل JSON serialization
+    cleaned_geojson = _clean_geojson_for_json(geojson)
+    
     data = {
-        "geojson": geojson,
+        "geojson": cleaned_geojson,
         "summary": summary,
         "original_filename": original_filename,
         "map_id": map_id,
+        "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     with open(map_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
 
 def load_map_data(map_id: str) -> Optional[Dict]:
@@ -466,11 +476,52 @@ def load_feature_data(feature_id: str) -> Optional[Dict]:
         return None
 
 
+def _clean_geojson_for_json(geojson: Dict) -> Dict:
+    """پاکسازی GeoJSON از انواع غیرقابل JSON serialization (مثل Timestamp)"""
+    import pandas as pd
+    from datetime import datetime, date
+    
+    if not isinstance(geojson, dict):
+        return geojson
+    
+    # کپی کردن برای عدم تغییر داده اصلی
+    cleaned = json.loads(json.dumps(geojson, default=str))
+    
+    # اگر cleaned یک string است (به خاطر default=str)، دوباره parse کن
+    if isinstance(cleaned, str):
+        cleaned = json.loads(cleaned)
+    
+    # پاکسازی عمیق‌تر در features
+    if "features" in cleaned:
+        for feature in cleaned["features"]:
+            if "properties" in feature:
+                props = feature["properties"]
+                for key, value in list(props.items()):
+                    # تبدیل Timestamp و datetime به string
+                    if isinstance(value, (pd.Timestamp, datetime, date)):
+                        props[key] = str(value)
+                    # تبدیل numpy types به Python native types
+                    elif hasattr(value, 'item'):  # numpy types
+                        try:
+                            props[key] = value.item()
+                        except (ValueError, AttributeError):
+                            props[key] = str(value)
+                    # تبدیل float64, int64 و غیره
+                    elif isinstance(value, (pd.Series, pd.DataFrame)):
+                        props[key] = str(value)
+    
+    return cleaned
+
+
 def save_feature_data(feature_id: str, geojson: Dict, summary: Dict, original_filename: str, map_id: str, feature_name: str) -> None:
     """ذخیره داده‌های یک عارضه"""
     feature_file = FEATURES_DIR / f"{feature_id}.json"
+    
+    # پاکسازی GeoJSON از انواع غیرقابل JSON serialization
+    cleaned_geojson = _clean_geojson_for_json(geojson)
+    
     data = {
-        "geojson": geojson,
+        "geojson": cleaned_geojson,
         "summary": summary,
         "original_filename": original_filename,
         "feature_id": feature_id,
@@ -479,7 +530,7 @@ def save_feature_data(feature_id: str, geojson: Dict, summary: Dict, original_fi
         "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     with open(feature_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
 
 def get_feature_identifier(feature: Dict) -> Optional[str]:
