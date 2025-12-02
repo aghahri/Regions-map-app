@@ -1257,8 +1257,9 @@ INDEX_TEMPLATE = """
     let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     if (geojsonData) {
+      // فقط لایر محلات قدیمی را حذف کن، نه لایرهای عوارض
       map.eachLayer(function(layer) {
-        if (layer instanceof L.GeoJSON) {
+        if (layer instanceof L.GeoJSON && layer === mainLayer) {
           map.removeLayer(layer);
         }
       });
@@ -1584,11 +1585,19 @@ INDEX_TEMPLATE = """
               layer.setZIndex(1000); // z-index بالا برای عوارض
             }
             
+            // اطمینان از اینکه لایر محلات روی نقشه است
+            ensureMainLayerVisible();
+            
             layer.addTo(map);
             
             // آوردن لایر به جلو (بالای لایر محلات)
             if (layer.bringToFront) {
               layer.bringToFront();
+            }
+            
+            // اطمینان از اینکه لایر محلات زیر عوارض است
+            if (mainLayer && mainLayer.bringToBack) {
+              mainLayer.bringToBack();
             }
             
             // همچنین هر لایر داخلی را به جلو بیاور و z-index تنظیم کن
@@ -1727,6 +1736,18 @@ INDEX_TEMPLATE = """
       if (featureLayers[featureId]) {
         map.removeLayer(featureLayers[featureId]);
         delete featureLayers[featureId];
+        console.log('Feature layer removed:', featureId);
+      }
+    }
+    
+    // تابع برای اطمینان از اینکه لایر محلات حفظ می‌شود
+    function ensureMainLayerVisible() {
+      if (mainLayer && !map.hasLayer(mainLayer)) {
+        console.log('Re-adding main layer to map');
+        mainLayer.addTo(map);
+        if (mainLayer.setZIndex) {
+          mainLayer.setZIndex(100);
+        }
       }
     }
 
