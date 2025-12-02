@@ -38,7 +38,7 @@ FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_INDEX_FILE = BASE_DIR / "uploads" / "regions" / "features_index.json"
 USERS_FILE = BASE_DIR / "uploads" / "regions" / "users.json"
 
-ALLOWED_EXTENSIONS = {"zip", "geojson"}
+ALLOWED_EXTENSIONS = {"zip", "geojson", "json"}
 TOOTAPP_BASE_URL = "https://tootapp.ir/join/"
 
 # نقش‌های کاربری
@@ -96,10 +96,118 @@ def _load_geojson_from_geojson(file_obj: FileStorage) -> Dict:
     if not payload:
         raise ValueError("فایل خالی است.")
     try:
-        geojson = json.loads(payload)
+        data = json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise ValueError("فایل GeoJSON معتبر نیست.") from exc
-    return geojson
+        raise ValueError("فایل JSON معتبر نیست.") from exc
+    
+    # بررسی اینکه آیا این OSM JSON است (از Overpass Turbo)
+    if isinstance(data, dict) and "elements" in data:
+        # تبدیل OSM JSON به GeoJSON
+        return _convert_osm_to_geojson(data)
+    elif isinstance(data, dict) and "type" in data:
+        # این یک GeoJSON استاندارد است
+        return data
+    else:
+        raise ValueError("فرمت فایل پشتیبانی نمی‌شود. لطفاً از GeoJSON یا خروجی Overpass Turbo استفاده کنید.")
+
+
+def _convert_osm_to_geojson(osm_data: Dict) -> Dict:
+    """تبدیل OSM JSON (از Overpass Turbo) به GeoJSON"""
+    from shapely.geometry import Point
+    
+    elements = osm_data.get("elements", [])
+    if not elements:
+        raise ValueError("فایل OSM خالی است.")
+    
+    # ایجاد دیکشنری برای ذخیره node ها
+    nodes = {}
+    ways = []
+    relations = []
+    
+    # جدا کردن node ها، way ها و relation ها
+    for element in elements:
+        elem_type = element.get("type")
+        if elem_type == "node":
+            nodes[element.get("id")] = {
+                "lat": element.get("lat"),
+                "lon": element.get("lon"),
+                "tags": element.get("tags", {})
+            }
+        elif elem_type == "way":
+            ways.append(element)
+        elif elem_type == "relation":
+            relations.append(element)
+    
+    features = []
+    
+    # تبدیل node ها به Point features
+    for node_id, node_data in nodes.items():
+        if node_data["lat"] is not None and node_data["lon"] is not None:
+            point = Point(node_data["lon"], node_data["lat"])
+            feature = {
+                "type": "Feature",
+                "geometry": json.loads(json.dumps(point.__geo_interface__)),
+                "properties": node_data["tags"].copy() if node_data["tags"] else {}
+            }
+            feature["properties"]["osm_id"] = node_id
+            feature["properties"]["osm_type"] = "node"
+            features.append(feature)
+    
+    # تبدیل way ها به LineString یا Polygon features
+    for way in ways:
+        way_nodes = way.get("nodes", [])
+        if not way_nodes:
+            continue
+        
+        # جمع‌آوری مختصات
+        coordinates = []
+        for node_id in way_nodes:
+            if node_id in nodes:
+                node = nodes[node_id]
+                if node["lat"] is not None and node["lon"] is not None:
+                    coordinates.append([node["lon"], node["lat"]])
+        
+        if len(coordinates) < 2:
+            continue
+        
+        tags = way.get("tags", {})
+        
+        # بررسی اینکه آیا way یک polygon است (closed way با tag area یا building)
+        is_closed = coordinates[0] == coordinates[-1]
+        is_area = tags.get("area") == "yes" or any(key in tags for key in ["building", "landuse", "leisure", "amenity"])
+        
+        if is_closed and (is_area or len(coordinates) >= 4):
+            # تبدیل به Polygon
+            geometry = {
+                "type": "Polygon",
+                "coordinates": [coordinates]
+            }
+        else:
+            # تبدیل به LineString
+            geometry = {
+                "type": "LineString",
+                "coordinates": coordinates
+            }
+        
+        feature = {
+            "type": "Feature",
+            "geometry": geometry,
+            "properties": tags.copy()
+        }
+        feature["properties"]["osm_id"] = way.get("id")
+        feature["properties"]["osm_type"] = "way"
+        features.append(feature)
+    
+    # تبدیل relation ها (پیچیده‌تر - فعلاً skip می‌کنیم)
+    # برای relation ها نیاز به پردازش پیچیده‌تری است
+    
+    if not features:
+        raise ValueError("هیچ عارضه‌ای در فایل OSM یافت نشد.")
+    
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
 
 def _load_geojson_from_shapefile(file_obj: FileStorage) -> Dict:
@@ -624,7 +732,7 @@ ADMIN_TEMPLATE = """
         <label>نام نقشه (اختیاری):</label>
         <input type="text" name="map_name" placeholder="مثلاً: محلات تهران" />
         <label>انتخاب فایل (Zip حاوی Shapefile یا GeoJSON):</label>
-        <input type="file" name="shapefile" accept=".zip,.geojson" required />
+        <input type="file" name="shapefile" accept=".zip,.geojson,.json" required />
         <button type="submit">آپلود و ذخیره</button>
         {% if error %}
           <div class="error">{{ error }}</div>
@@ -648,7 +756,7 @@ ADMIN_TEMPLATE = """
         <label>نام عارضه (اختیاری):</label>
         <input type="text" name="feature_name" placeholder="مثلاً: پارک‌های تهران" />
         <label>انتخاب فایل (Zip حاوی Shapefile یا GeoJSON):</label>
-        <input type="file" name="shapefile" accept=".zip,.geojson" required />
+        <input type="file" name="shapefile" accept=".zip,.geojson,.json" required />
         <button type="submit">آپلود عوارض</button>
       </form>
       <div id="featureUploadStatus" style="margin-top: 1rem;"></div>
