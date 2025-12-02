@@ -1435,7 +1435,7 @@ def api_get_neighborhood():
     Returns JSON:
         {
             "success": true/false,
-            "neighborhood": "نام محله",
+            "region": "نام محله",
             "district": "نام منطقه",
             "city": "نام شهر",
             "map_id": "شناسه نقشه",
@@ -1600,7 +1600,7 @@ def api_get_neighborhood():
                     
                     return jsonify({
                         "success": True,
-                        "neighborhood": neighborhood,
+                        "region": neighborhood,
                         "district": district,
                         "city": city,
                         "map_id": current_map_id,
