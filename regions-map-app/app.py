@@ -93,7 +93,11 @@ def is_allowed(filename: str) -> bool:
 
 def _clean_geojson_for_json(geojson: Dict) -> Dict:
     """پاکسازی GeoJSON از انواع غیرقابل JSON serialization (مثل Timestamp)"""
-    import pandas as pd
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+    
     from datetime import datetime, date
     
     if not isinstance(geojson, dict):
@@ -102,35 +106,54 @@ def _clean_geojson_for_json(geojson: Dict) -> Dict:
     # کپی کردن برای عدم تغییر داده اصلی
     try:
         cleaned = json.loads(json.dumps(geojson, default=str))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as e:
         # اگر هنوز مشکل داشت، دستی پاکسازی کن
-        cleaned = json.loads(json.dumps(geojson, default=lambda x: str(x) if hasattr(x, '__str__') else None))
+        try:
+            cleaned = json.loads(json.dumps(geojson, default=lambda x: str(x) if hasattr(x, '__str__') else None))
+        except Exception:
+            # اگر باز هم خطا داد، GeoJSON اصلی را برگردان
+            return geojson
     
     # اگر cleaned یک string است (به خاطر default=str)، دوباره parse کن
     if isinstance(cleaned, str):
-        cleaned = json.loads(cleaned)
+        try:
+            cleaned = json.loads(cleaned)
+        except json.JSONDecodeError:
+            return geojson
     
     # پاکسازی عمیق‌تر در features
-    if "features" in cleaned:
+    if "features" in cleaned and isinstance(cleaned["features"], list):
         for feature in cleaned["features"]:
-            if "properties" in feature:
+            if isinstance(feature, dict) and "properties" in feature:
                 props = feature["properties"]
+                if not isinstance(props, dict):
+                    continue
                 for key, value in list(props.items()):
-                    # تبدیل Timestamp و datetime به string
-                    if isinstance(value, (pd.Timestamp, datetime, date)):
-                        props[key] = str(value)
-                    # تبدیل numpy types به Python native types
-                    elif hasattr(value, 'item'):  # numpy types
-                        try:
-                            props[key] = value.item()
-                        except (ValueError, AttributeError):
+                    try:
+                        # تبدیل Timestamp و datetime به string
+                        if pd and isinstance(value, pd.Timestamp):
                             props[key] = str(value)
-                    # تبدیل float64, int64 و غیره
-                    elif isinstance(value, (pd.Series, pd.DataFrame)):
-                        props[key] = str(value)
-                    # تبدیل numpy.datetime64
-                    elif hasattr(value, 'dtype') and 'datetime' in str(value.dtype):
-                        props[key] = str(value)
+                        elif isinstance(value, (datetime, date)):
+                            props[key] = str(value)
+                        # تبدیل numpy types به Python native types
+                        elif hasattr(value, 'item'):  # numpy types
+                            try:
+                                props[key] = value.item()
+                            except (ValueError, AttributeError):
+                                props[key] = str(value)
+                        # تبدیل float64, int64 و غیره
+                        elif pd and isinstance(value, (pd.Series, pd.DataFrame)):
+                            props[key] = str(value)
+                        # تبدیل numpy.datetime64
+                        elif hasattr(value, 'dtype') and 'datetime' in str(value.dtype):
+                            props[key] = str(value)
+                    except Exception:
+                        # اگر خطایی رخ داد، مقدار را به string تبدیل کن
+                        try:
+                            props[key] = str(value)
+                        except Exception:
+                            # اگر باز هم خطا داد، فیلد را حذف کن
+                            props.pop(key, None)
     
     return cleaned
 
