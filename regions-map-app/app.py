@@ -33,6 +33,9 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = BASE_DIR / "uploads" / "regions" / "history.json"
 LINKS_DIR = BASE_DIR / "uploads" / "regions" / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
+FEATURES_DIR = BASE_DIR / "uploads" / "regions" / "features"
+FEATURES_DIR.mkdir(parents=True, exist_ok=True)
+FEATURES_INDEX_FILE = BASE_DIR / "uploads" / "regions" / "features_index.json"
 USERS_FILE = BASE_DIR / "uploads" / "regions" / "users.json"
 
 ALLOWED_EXTENSIONS = {"zip", "geojson"}
@@ -326,6 +329,51 @@ def save_links(map_id: str, links: Dict[str, str]) -> None:
         json.dump(links, f, ensure_ascii=False, indent=2)
 
 
+def load_features_index() -> List[Dict]:
+    """بارگذاری فهرست عوارض محله‌ها"""
+    if not FEATURES_INDEX_FILE.exists():
+        return []
+    try:
+        with open(FEATURES_INDEX_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
+def save_features_index(index: List[Dict]) -> None:
+    """ذخیره فهرست عوارض محله‌ها"""
+    with open(FEATURES_INDEX_FILE, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+
+def load_feature_data(feature_id: str) -> Optional[Dict]:
+    """بارگذاری داده‌های یک عارضه"""
+    feature_file = FEATURES_DIR / f"{feature_id}.json"
+    if not feature_file.exists():
+        return None
+    try:
+        with open(feature_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def save_feature_data(feature_id: str, geojson: Dict, summary: Dict, original_filename: str, map_id: str, feature_name: str) -> None:
+    """ذخیره داده‌های یک عارضه"""
+    feature_file = FEATURES_DIR / f"{feature_id}.json"
+    data = {
+        "geojson": geojson,
+        "summary": summary,
+        "original_filename": original_filename,
+        "feature_id": feature_id,
+        "map_id": map_id,
+        "feature_name": feature_name,
+        "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    with open(feature_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def get_feature_identifier(feature: Dict) -> Optional[str]:
     """ایجاد شناسه منحصر به فرد برای یک feature"""
     props = feature.get("properties", {})
@@ -587,6 +635,25 @@ ADMIN_TEMPLATE = """
       </form>
     </div>
     <div class="card">
+      <h2>آپلود عوارض محله</h2>
+      <p style="color: #6c757d; margin-bottom: 1rem;">برای آپلود عوارض محله (مثلاً پارک‌ها، مدارس، مراکز خرید و...) ابتدا نقشه را انتخاب کنید:</p>
+      <form id="uploadFeatureForm" enctype="multipart/form-data" onsubmit="uploadFeature(event)">
+        <label>انتخاب نقشه:</label>
+        <select name="map_id" id="featureMapId" required style="width: 100%; padding: 0.75rem; border: 1px solid #dde3ea; border-radius: 8px; margin-bottom: 1rem; box-sizing: border-box;">
+          <option value="">-- انتخاب نقشه --</option>
+          {% for item in history %}
+          <option value="{{ item.map_id }}">{{ item.map_name or item.original_filename }}</option>
+          {% endfor %}
+        </select>
+        <label>نام عارضه (اختیاری):</label>
+        <input type="text" name="feature_name" placeholder="مثلاً: پارک‌های تهران" />
+        <label>انتخاب فایل (Zip حاوی Shapefile یا GeoJSON):</label>
+        <input type="file" name="shapefile" accept=".zip,.geojson" required />
+        <button type="submit">آپلود عوارض</button>
+      </form>
+      <div id="featureUploadStatus" style="margin-top: 1rem;"></div>
+    </div>
+    <div class="card">
       <h2>تاریخچه نقشه‌ها</h2>
       {% if history %}
       <ul class="history-list">
@@ -612,6 +679,37 @@ ADMIN_TEMPLATE = """
       {% endif %}
     </div>
   </main>
+  <script>
+    async function uploadFeature(event) {
+      event.preventDefault();
+      const form = document.getElementById('uploadFeatureForm');
+      const formData = new FormData(form);
+      const statusDiv = document.getElementById('featureUploadStatus');
+      
+      statusDiv.innerHTML = '<p style="color: #2a9d8f;">در حال آپلود...</p>';
+      
+      try {
+        const response = await fetch('/admin/features/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          statusDiv.innerHTML = `<div class="success">${data.message}</div>`;
+          form.reset();
+          setTimeout(() => {
+            statusDiv.innerHTML = '';
+          }, 3000);
+        } else {
+          statusDiv.innerHTML = `<div class="error">${data.error}</div>`;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="error">خطا در آپلود: ${error.message}</div>`;
+      }
+    }
+  </script>
 </body>
 </html>
 """
@@ -933,6 +1031,18 @@ INDEX_TEMPLATE = """
         {% endif %}
       </div>
       {% endif %}
+      {% if selected_map_id %}
+      <div class="card" style="margin-bottom: 1rem;">
+        <h3>عوارض محله</h3>
+        <div id="features-list" style="margin-bottom: 1rem;">
+          <p style="color: #6c757d;">در حال بارگذاری...</p>
+        </div>
+        <div id="selected-features" style="display: none;">
+          <strong>عوارض انتخاب شده:</strong>
+          <div id="selected-list" style="margin-top: 0.5rem;"></div>
+        </div>
+      </div>
+      {% endif %}
       <div id="map"></div>
     </section>
     <div class="admin-link">
@@ -1047,6 +1157,138 @@ INDEX_TEMPLATE = """
         noResults.style.display = 'block';
       } else {
         noResults.style.display = 'none';
+      }
+    }
+
+    // مدیریت عوارض محله
+    const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
+    const selectedFeatures = new Set();
+    const featureLayers = {};
+
+    if (selectedMapId) {
+      // بارگذاری لیست عوارض
+      fetch(`/api/features/list?map_id=${selectedMapId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.features.length > 0) {
+            const featuresList = document.getElementById('features-list');
+            featuresList.innerHTML = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            
+            data.features.forEach(feature => {
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.id = `feature-${feature.feature_id}`;
+              checkbox.value = feature.feature_id;
+              checkbox.style.marginLeft = '0.5rem';
+              checkbox.onchange = function() {
+                toggleFeature(feature.feature_id, this.checked);
+              };
+              
+              const label = document.createElement('label');
+              label.htmlFor = `feature-${feature.feature_id}`;
+              label.style.cursor = 'pointer';
+              label.style.display = 'flex';
+              label.style.alignItems = 'center';
+              label.appendChild(checkbox);
+              label.appendChild(document.createTextNode(` ${feature.feature_name || feature.original_filename}`));
+              
+              featuresList.appendChild(label);
+            });
+            
+            featuresList.innerHTML += '</div>';
+          } else {
+            document.getElementById('features-list').innerHTML = '<p style="color: #6c757d;">هیچ عارضه‌ای برای این نقشه آپلود نشده است.</p>';
+          }
+        })
+        .catch(error => {
+          console.error('Error loading features:', error);
+          document.getElementById('features-list').innerHTML = '<p style="color: #d32f2f;">خطا در بارگذاری عوارض</p>';
+        });
+    }
+
+    function toggleFeature(featureId, show) {
+      if (show) {
+        selectedFeatures.add(featureId);
+        loadFeatureOnMap(featureId);
+      } else {
+        selectedFeatures.delete(featureId);
+        removeFeatureFromMap(featureId);
+      }
+      updateSelectedList();
+    }
+
+    function loadFeatureOnMap(featureId) {
+      if (featureLayers[featureId]) {
+        return; // قبلاً بارگذاری شده
+      }
+
+      fetch(`/api/features/${featureId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.geojson) {
+            const layer = L.geoJSON(data.geojson, {
+              style: function() { 
+                return { 
+                  color: '#ff6b6b', 
+                  weight: 2, 
+                  fillOpacity: 0.3,
+                  fillColor: '#ff6b6b'
+                }; 
+              },
+              onEachFeature: function(feature, layer) {
+                if (feature.properties) {
+                  const props = feature.properties;
+                  const popupItems = [];
+                  for (const key in props) {
+                    if (key.toLowerCase() !== 'geometry') {
+                      const value = props[key];
+                      if (value !== undefined && value !== null && String(value).trim() !== '') {
+                        popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                      }
+                    }
+                  }
+                  if (popupItems.length > 0) {
+                    layer.bindPopup(popupItems.join('<br/>'));
+                  }
+                }
+              }
+            }).addTo(map);
+            
+            featureLayers[featureId] = layer;
+            
+            // تنظیم view روی عوارض
+            try {
+              map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+            } catch (err) {
+              console.warn('Cannot fit bounds', err);
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading feature:', error);
+        });
+    }
+
+    function removeFeatureFromMap(featureId) {
+      if (featureLayers[featureId]) {
+        map.removeLayer(featureLayers[featureId]);
+        delete featureLayers[featureId];
+      }
+    }
+
+    function updateSelectedList() {
+      const selectedDiv = document.getElementById('selected-features');
+      const selectedList = document.getElementById('selected-list');
+      
+      if (selectedFeatures.size > 0) {
+        selectedDiv.style.display = 'block';
+        selectedList.innerHTML = Array.from(selectedFeatures).map(id => {
+          const checkbox = document.getElementById(`feature-${id}`);
+          const name = checkbox ? checkbox.nextSibling.textContent.trim() : id;
+          return `<span style="display: inline-block; background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin: 0.25rem;">${name}</span>`;
+        }).join('');
+      } else {
+        selectedDiv.style.display = 'none';
       }
     }
   </script>
@@ -1631,6 +1873,123 @@ def api_get_neighborhood():
             "success": False,
             "error": f"خطا در پردازش درخواست: {str(e)}"
         }), 500
+
+
+@app.route("/admin/features/upload", methods=["POST"])
+def admin_upload_feature():
+    """آپلود عوارض محله (فقط برای admin)"""
+    if not session.get("username"):
+        return jsonify({"success": False, "error": "لطفاً وارد شوید"}), 403
+    
+    if not has_permission("upload"):
+        return jsonify({"success": False, "error": "شما دسترسی آپلود ندارید"}), 403
+    
+    try:
+        file_obj = request.files.get("shapefile")
+        map_id = request.form.get("map_id", "").strip()
+        feature_name = request.form.get("feature_name", "").strip()
+        
+        if not file_obj or not file_obj.filename:
+            return jsonify({"success": False, "error": "لطفاً یک فایل انتخاب کنید"}), 400
+        
+        if not map_id:
+            return jsonify({"success": False, "error": "شناسه نقشه الزامی است"}), 400
+        
+        # بررسی وجود نقشه
+        map_data = load_map_data(map_id)
+        if not map_data:
+            return jsonify({"success": False, "error": "نقشه پیدا نشد"}), 404
+        
+        # بارگذاری و تبدیل shapefile
+        geojson, summary = load_geojson(file_obj)
+        feature_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        
+        # ذخیره داده‌های عارضه
+        final_feature_name = feature_name or file_obj.filename
+        save_feature_data(feature_id, geojson, summary, file_obj.filename, map_id, final_feature_name)
+        
+        # به‌روزرسانی فهرست
+        index = load_features_index()
+        index.append({
+            "feature_id": feature_id,
+            "feature_name": final_feature_name,
+            "map_id": map_id,
+            "original_filename": file_obj.filename,
+            "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_count": summary.get("feature_count", 0),
+        })
+        save_features_index(index)
+        
+        return jsonify({
+            "success": True,
+            "message": "عوارض با موفقیت آپلود شد",
+            "feature_id": feature_id
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": f"خطا در پردازش: {str(e)}"}), 500
+
+
+@app.route("/api/features/list", methods=["GET"])
+def api_list_features():
+    """لیست عوارض موجود برای یک نقشه"""
+    map_id = request.args.get("map_id")
+    
+    if not map_id:
+        return jsonify({"success": False, "error": "شناسه نقشه الزامی است"}), 400
+    
+    index = load_features_index()
+    features = [item for item in index if item.get("map_id") == map_id]
+    
+    return jsonify({
+        "success": True,
+        "features": features
+    }), 200
+
+
+@app.route("/api/features/<feature_id>", methods=["GET"])
+def api_get_feature(feature_id: str):
+    """دریافت داده‌های یک عارضه"""
+    feature_data = load_feature_data(feature_id)
+    
+    if not feature_data:
+        return jsonify({"success": False, "error": "عارضه پیدا نشد"}), 404
+    
+    return jsonify({
+        "success": True,
+        "geojson": feature_data.get("geojson"),
+        "summary": feature_data.get("summary"),
+        "feature_name": feature_data.get("feature_name"),
+        "upload_date": feature_data.get("upload_date"),
+    }), 200
+
+
+@app.route("/admin/features/delete/<feature_id>", methods=["POST"])
+def admin_delete_feature(feature_id: str):
+    """حذف عارضه (فقط برای admin)"""
+    if not session.get("username"):
+        return jsonify({"success": False, "error": "لطفاً وارد شوید"}), 403
+    
+    if not has_permission("delete"):
+        return jsonify({"success": False, "error": "شما دسترسی حذف ندارید"}), 403
+    
+    try:
+        # حذف فایل
+        feature_file = FEATURES_DIR / f"{feature_id}.json"
+        if feature_file.exists():
+            feature_file.unlink()
+        
+        # حذف از فهرست
+        index = load_features_index()
+        index = [item for item in index if item.get("feature_id") != feature_id]
+        save_features_index(index)
+        
+        return jsonify({"success": True, "message": "عارضه با موفقیت حذف شد"}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"خطا در حذف: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
