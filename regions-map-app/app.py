@@ -1498,29 +1498,29 @@ INDEX_TEMPLATE = """
                 // استایل برای خطوط (LineString, MultiLineString)
                 if (feature.geometry && (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString')) {
                   return {
-                    color: '#ff6b6b',
-                    weight: 4,
-                    opacity: 0.9
+                    color: '#ff0000',
+                    weight: 5,
+                    opacity: 1
                   };
                 }
                 // استایل برای چندضلعی‌ها (Polygon, MultiPolygon)
                 return {
-                  color: '#ff6b6b',
-                  weight: 3,
-                  fillOpacity: 0.5,
+                  color: '#ff0000',
+                  weight: 4,
+                  fillOpacity: 0.6,
                   fillColor: '#ff6b6b',
                   opacity: 1
                 };
               },
               pointToLayer: function(feature, latlng) {
-                // برای نقاط از CircleMarker استفاده کن با سایز بزرگتر
+                // برای نقاط از CircleMarker استفاده کن با سایز بزرگتر و قابل مشاهده
                 return L.circleMarker(latlng, {
-                  radius: 10,
-                  fillColor: '#ff6b6b',
-                  color: '#d63031',
-                  weight: 3,
+                  radius: 12,
+                  fillColor: '#ff0000',
+                  color: '#cc0000',
+                  weight: 4,
                   opacity: 1,
-                  fillOpacity: 0.9
+                  fillOpacity: 1
                 });
               },
               onEachFeature: function(feature, layer) {
@@ -1627,18 +1627,58 @@ INDEX_TEMPLATE = """
             try {
               const bounds = layer.getBounds();
               if (bounds && bounds.isValid && bounds.isValid()) {
+                console.log('Fitting bounds to features');
                 // اگر لایر محلات وجود دارد، bounds را با آن ترکیب کن
-                if (mainLayer) {
-                  const combinedBounds = bounds.extend(mainLayer.getBounds());
-                  map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+                if (mainLayer && mainLayer.getBounds) {
+                  try {
+                    const mainBounds = mainLayer.getBounds();
+                    if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
+                      const combinedBounds = bounds.extend(mainBounds);
+                      map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+                      console.log('Fitted to combined bounds');
+                    } else {
+                      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                      console.log('Fitted to feature bounds only');
+                    }
+                  } catch (e) {
+                    console.warn('Error extending bounds:', e);
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                  }
                 } else {
                   map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                  console.log('Fitted to feature bounds (no main layer)');
                 }
               } else {
-                console.warn('Invalid bounds, cannot fit');
+                console.warn('Invalid bounds, cannot fit. Bounds:', bounds);
+                // اگر bounds معتبر نیست، سعی کن مختصات features را پیدا کن
+                let hasValidCoords = false;
+                layer.eachLayer(function(l) {
+                  if (l.getLatLng) {
+                    const latlng = l.getLatLng();
+                    if (latlng && latlng.lat && latlng.lng) {
+                      map.setView([latlng.lat, latlng.lng], 15);
+                      hasValidCoords = true;
+                      return false; // break
+                    }
+                  } else if (l.getBounds) {
+                    try {
+                      const lBounds = l.getBounds();
+                      if (lBounds && lBounds.isValid && lBounds.isValid()) {
+                        map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
+                        hasValidCoords = true;
+                        return false; // break
+                      }
+                    } catch (e) {
+                      console.warn('Error getting layer bounds:', e);
+                    }
+                  }
+                });
+                if (!hasValidCoords) {
+                  console.error('Could not find valid coordinates in any layer');
+                }
               }
             } catch (err) {
-              console.warn('Cannot fit bounds:', err);
+              console.error('Cannot fit bounds:', err);
             }
           } else {
             console.error('No GeoJSON data in response:', data);
