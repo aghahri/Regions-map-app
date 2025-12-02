@@ -1527,6 +1527,20 @@ def api_get_neighborhood():
                             neighborhood = str(props[field])
                             break
                     
+                    # اگر محله پیدا نشد، جستجوی گسترده‌تر
+                    if not neighborhood:
+                        # جستجو در همه فیلدها برای پیدا کردن نام محله
+                        exclude_fields = ['geometry', 'tootapp_url', 'district', 'region', 'city', 'ostan', 'id', 'ID']
+                        for key, value in props.items():
+                            if key.lower() not in [f.lower() for f in exclude_fields]:
+                                value_str = str(value).strip()
+                                # اگر مقدار خالی نباشد و عدد نباشد (احتمالاً نام است)
+                                if value_str and not value_str.replace('.', '').replace('-', '').isdigit():
+                                    # بررسی اینکه نام محله باشد (نه مختصات یا کد)
+                                    if len(value_str) > 2 and len(value_str) < 100:
+                                        neighborhood = value_str
+                                        break
+                    
                     # جستجوی منطقه
                     for field in DISTRICT_FIELDS:
                         if field in props and props[field]:
