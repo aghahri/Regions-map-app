@@ -2334,38 +2334,45 @@ def api_list_features():
 @app.route("/api/features/<feature_id>", methods=["GET"])
 def api_get_feature(feature_id: str):
     """دریافت داده‌های یک عارضه"""
-    feature_data = load_feature_data(feature_id)
-    
-    if not feature_data:
-        return jsonify({"success": False, "error": "عارضه پیدا نشد"}), 404
-    
-    geojson = feature_data.get("geojson")
-    
-    # اطمینان از اینکه GeoJSON یک dict معتبر است
-    if not geojson:
-        return jsonify({"success": False, "error": "داده GeoJSON یافت نشد"}), 404
-    
-    # بررسی ساختار GeoJSON
-    if isinstance(geojson, dict):
-        # اگر GeoJSON یک dict است، مستقیماً برگردان
-        if "type" not in geojson:
-            return jsonify({"success": False, "error": "ساختار GeoJSON نامعتبر است"}), 400
-    elif isinstance(geojson, str):
-        # اگر GeoJSON یک string است، parse کن
-        try:
-            geojson = json.loads(geojson)
-        except json.JSONDecodeError:
-            return jsonify({"success": False, "error": "خطا در parse کردن GeoJSON"}), 400
-    else:
-        return jsonify({"success": False, "error": "نوع داده GeoJSON نامعتبر است"}), 400
-    
-    return jsonify({
-        "success": True,
-        "geojson": geojson,
-        "summary": feature_data.get("summary"),
-        "feature_name": feature_data.get("feature_name"),
-        "upload_date": feature_data.get("upload_date"),
-    }), 200
+    try:
+        feature_data = load_feature_data(feature_id)
+        
+        if not feature_data:
+            return jsonify({"success": False, "error": "عارضه پیدا نشد"}), 404
+        
+        geojson = feature_data.get("geojson")
+        
+        # اطمینان از اینکه GeoJSON یک dict معتبر است
+        if not geojson:
+            return jsonify({"success": False, "error": "داده GeoJSON یافت نشد"}), 404
+        
+        # بررسی ساختار GeoJSON
+        if isinstance(geojson, dict):
+            # اگر GeoJSON یک dict است، مستقیماً برگردان
+            if "type" not in geojson:
+                return jsonify({"success": False, "error": "ساختار GeoJSON نامعتبر است - فیلد type وجود ندارد"}), 400
+            # بررسی اینکه آیا FeatureCollection است و features دارد
+            if geojson.get("type") == "FeatureCollection":
+                if "features" not in geojson or not isinstance(geojson["features"], list):
+                    return jsonify({"success": False, "error": "ساختار FeatureCollection نامعتبر است"}), 400
+        elif isinstance(geojson, str):
+            # اگر GeoJSON یک string است، parse کن
+            try:
+                geojson = json.loads(geojson)
+            except json.JSONDecodeError as e:
+                return jsonify({"success": False, "error": f"خطا در parse کردن GeoJSON: {str(e)}"}), 400
+        else:
+            return jsonify({"success": False, "error": f"نوع داده GeoJSON نامعتبر است: {type(geojson)}"}), 400
+        
+        return jsonify({
+            "success": True,
+            "geojson": geojson,
+            "summary": feature_data.get("summary"),
+            "feature_name": feature_data.get("feature_name"),
+            "upload_date": feature_data.get("upload_date"),
+        }), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": f"خطا در پردازش درخواست: {str(e)}"}), 500
 
 
 @app.route("/admin/features/delete/<feature_id>", methods=["POST"])
