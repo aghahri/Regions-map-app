@@ -1263,7 +1263,7 @@ INDEX_TEMPLATE = """
         }
       });
       mainLayer = L.geoJSON(geojsonData, {
-        style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1 }; },
+        style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1, zIndex: 100 }; },
         onEachFeature: function(feature, layer) {
           if (feature.properties) {
             const props = feature.properties;
@@ -1579,6 +1579,11 @@ INDEX_TEMPLATE = """
               return;
             }
             
+            // تنظیم z-index بالا برای لایر عوارض (قبل از اضافه کردن به نقشه)
+            if (layer.setZIndex) {
+              layer.setZIndex(1000); // z-index بالا برای عوارض
+            }
+            
             layer.addTo(map);
             
             // آوردن لایر به جلو (بالای لایر محلات)
@@ -1586,12 +1591,39 @@ INDEX_TEMPLATE = """
               layer.bringToFront();
             }
             
-            // همچنین هر لایر داخلی را به جلو بیاور
+            // همچنین هر لایر داخلی را به جلو بیاور و z-index تنظیم کن
             layer.eachLayer(function(l) {
               if (l.bringToFront) {
                 l.bringToFront();
               }
+              // تنظیم z-index برای هر لایر داخلی
+              if (l.setZIndex) {
+                l.setZIndex(1000);
+              }
+              // برای CircleMarker و Marker
+              if (l.setZIndexOffset) {
+                l.setZIndexOffset(1000);
+              }
+              // برای Path (Polyline, Polygon)
+              if (l.options) {
+                l.options.zIndex = 1000;
+                if (l.setStyle) {
+                  l.setStyle({ zIndex: 1000 });
+                }
+              }
             });
+            
+            // اطمینان از اینکه لایر عوارض بالای همه لایرهای دیگر است
+            setTimeout(function() {
+              if (layer.bringToFront) {
+                layer.bringToFront();
+              }
+              layer.eachLayer(function(l) {
+                if (l.bringToFront) {
+                  l.bringToFront();
+                }
+              });
+            }, 100);
             
             featureLayers[featureId] = layer;
             
