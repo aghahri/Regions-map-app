@@ -305,8 +305,18 @@ def _load_geojson_from_shapefile(file_obj: FileStorage) -> Dict:
     else:
         gdf = gdf.set_crs(epsg=4326, allow_override=True)
 
-    # تبدیل به GeoJSON و پاکسازی انواع غیرقابل JSON serialization
-    geojson_str = gdf.to_json(default_handler=str)
+    # تبدیل به GeoJSON - ابتدا فیلدهای غیرقابل JSON serialization را تبدیل کن
+    # تبدیل تمام ستون‌های datetime/timestamp به string
+    for col in gdf.columns:
+        if col != 'geometry':
+            if gdf[col].dtype.name.startswith('datetime') or 'date' in gdf[col].dtype.name.lower():
+                gdf[col] = gdf[col].astype(str)
+            # تبدیل numpy types به Python native types
+            elif gdf[col].dtype.name in ['int64', 'float64']:
+                gdf[col] = gdf[col].astype('int64' if 'int' in gdf[col].dtype.name else 'float64')
+    
+    # حالا به GeoJSON تبدیل کن
+    geojson_str = gdf.to_json()
     geojson = json.loads(geojson_str)
     
     # پاکسازی بیشتر برای اطمینان
