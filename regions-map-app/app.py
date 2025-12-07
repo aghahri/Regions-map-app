@@ -1268,9 +1268,9 @@ INDEX_TEMPLATE = """
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
     
     // حذف فقط لایه‌های GeoJSON قبلی (نه tile layer)
-    map.eachLayer(function(layer) {
+    window.map.eachLayer(function(layer) {
       if (layer instanceof L.GeoJSON) {
-        map.removeLayer(layer);
+        window.map.removeLayer(layer);
       }
     });
     
