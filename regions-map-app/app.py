@@ -2669,7 +2669,22 @@ def api_get_feature(feature_id: str):
         # attach کردن لینک‌های توت‌اپ به geojson
         map_id = feature_data.get("map_id")
         if map_id:
-            _attach_tootapp_links(geojson, map_id)
+            # برای عوارض، از feature_id استفاده می‌کنیم
+            saved_links = load_links(map_id)
+            if feature_id in saved_links:
+                saved_link = saved_links[feature_id]
+                # attach کردن لینک به تمام features در geojson
+                for feature in geojson.get("features", []):
+                    props = feature.setdefault("properties", {})
+                    if saved_link.startswith("http"):
+                        props["tootapp_url"] = saved_link
+                    else:
+                        props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
+            else:
+                # اگر لینک ذخیره شده نبود، از پیش‌فرض استفاده می‌کنیم
+                for feature in geojson.get("features", []):
+                    props = feature.setdefault("properties", {})
+                    props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
         
         return jsonify({
             "success": True,
