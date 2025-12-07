@@ -2762,11 +2762,17 @@ def admin_manage_feature_links(map_id: str):
         return redirect(url_for("admin_panel") + "?error=شما دسترسی مدیریت لینک‌ها ندارید")
     
     # بارگذاری لیست عوارض
-    index = load_features_index()
-    features = [item for item in index if item.get("map_id") == map_id]
+    try:
+        index = load_features_index()
+        features = [item for item in index if item.get("map_id") == map_id]
+    except Exception as e:
+        features = []
     
     # بارگذاری لینک‌های ذخیره شده
-    saved_links = load_links(map_id)
+    try:
+        saved_links = load_links(map_id)
+    except Exception as e:
+        saved_links = {}
     
     # اضافه کردن لینک به هر عارضه
     for feature in features:
@@ -2775,6 +2781,12 @@ def admin_manage_feature_links(map_id: str):
             feature["link"] = saved_links.get(feature_id, "nvsji")
         else:
             feature["link"] = "nvsji"
+        
+        # اطمینان از وجود فیلدهای مورد نیاز
+        if "feature_name" not in feature:
+            feature["feature_name"] = None
+        if "original_filename" not in feature:
+            feature["original_filename"] = "نامشخص"
     
     history = load_history()
     map_info = next((item for item in history if item.get("map_id") == map_id), None)
