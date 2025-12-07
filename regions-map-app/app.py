@@ -2710,6 +2710,150 @@ def api_get_feature(feature_id: str):
         return jsonify({"success": False, "error": f"خطا در پردازش درخواست: {str(e)}"}), 500
 
 
+@app.route("/api/features/by-location", methods=["GET", "POST"])
+def api_get_features_by_location():
+    """
+    API برای دریافت عوارض موجود در نقشه بر اساس نام محله، منطقه و شهر
+    
+    Parameters:
+        - neighborhood: نام محله (الزامی)
+        - district: نام منطقه (اختیاری)
+        - city: نام شهر (الزامی)
+    
+    Returns JSON:
+        {
+            "success": true/false,
+            "city": "نام شهر",
+            "neighborhood": "نام محله",
+            "district": "نام منطقه",
+            "map_id": "شناسه نقشه",
+            "map_name": "نام نقشه",
+            "features": [
+                {
+                    "feature_id": "شناسه عارضه",
+                    "type": "نوع عارضه (Point, Polygon, etc)",
+                    "coordinates": [مختصات جغرافیایی],
+                    "properties": {همه فیلدهای موجود در عارضه}
+                }
+            ]
+        }
+    """
+    try:
+        # دریافت پارامترها
+        if request.method == "POST":
+            data = request.get_json() or request.form
+            neighborhood = data.get("neighborhood") or data.get("neighbourhood")
+            district = data.get("district")
+            city = data.get("city")
+        else:  # GET
+            neighborhood = request.args.get("neighborhood") or request.args.get("neighbourhood")
+            district = request.args.get("district")
+            city = request.args.get("city")
+        
+        # بررسی پارامترهای ورودی
+        if not neighborhood or not city:
+            return jsonify({
+                "success": False,
+                "error": "پارامترهای neighborhood و city الزامی هستند"
+            }), 400
+        
+        # جستجوی نقشه مربوط به شهر
+        history = load_history()
+        map_info = None
+        for item in history:
+            map_name = (item.get("map_name") or item.get("original_filename", "")).lower()
+            if city.lower() in map_name:
+                map_info = item
+                break
+        
+        if not map_info:
+            return jsonify({
+                "success": False,
+                "error": f"نقشه‌ای برای شهر '{city}' پیدا نشد"
+            }), 404
+        
+        map_id = map_info.get("map_id")
+        map_name = map_info.get("map_name") or map_info.get("original_filename", "نقشه")
+        
+        # بارگذاری لیست عوارض
+        index = load_features_index()
+        features_list = [item for item in index if item.get("map_id") == map_id]
+        
+        # بارگذاری داده‌های هر عارضه
+        result_features = []
+        for feature_item in features_list:
+            feature_id = feature_item.get("feature_id")
+            if not feature_id:
+                continue
+            
+            feature_data = load_feature_data(feature_id)
+            if not feature_data:
+                continue
+            
+            geojson = feature_data.get("geojson")
+            if not geojson:
+                continue
+            
+            # parse کردن geojson اگر string است
+            if isinstance(geojson, str):
+                try:
+                    geojson = json.loads(geojson)
+                except json.JSONDecodeError:
+                    continue
+            
+            # پردازش features در geojson
+            if geojson.get("type") == "FeatureCollection" and geojson.get("features"):
+                for feature in geojson.get("features", []):
+                    props = feature.get("properties", {})
+                    
+                    # بررسی تطابق با neighborhood
+                    neighborhood_match = False
+                    for field in NEIGHBORHOOD_FIELDS:
+                        if field in props:
+                            value = str(props[field]).lower().strip()
+                            if neighborhood.lower().strip() in value or value in neighborhood.lower().strip():
+                                neighborhood_match = True
+                                break
+                    
+                    # اگر district مشخص شده، بررسی تطابق
+                    district_match = True
+                    if district:
+                        district_match = False
+                        for field in DISTRICT_FIELDS:
+                            if field in props:
+                                value = str(props[field]).lower().strip()
+                                if district.lower().strip() in value or value in district.lower().strip():
+                                    district_match = True
+                                    break
+                    
+                    # اگر تطابق داشت، اضافه کن
+                    if neighborhood_match and district_match:
+                        geometry = feature.get("geometry", {})
+                        result_features.append({
+                            "feature_id": feature_id,
+                            "type": geometry.get("type", "Unknown"),
+                            "coordinates": geometry.get("coordinates", []),
+                            "properties": props
+                        })
+        
+        return jsonify({
+            "success": True,
+            "city": city,
+            "neighborhood": neighborhood,
+            "district": district if district else None,
+            "map_id": map_id,
+            "map_name": map_name,
+            "features": result_features,
+            "count": len(result_features)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"خطا در پردازش درخواست: {str(e)}"
+        }), 500
+
+
 @app.route("/admin/features/delete/<feature_id>", methods=["POST"])
 def admin_delete_feature(feature_id: str):
     """حذف عارضه (فقط برای admin)"""
