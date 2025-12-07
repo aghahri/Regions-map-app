@@ -1317,7 +1317,11 @@ INDEX_TEMPLATE = """
       }).addTo(map);
     }
     
-    // بارگذاری عوارض انتخاب شده (از server - به صورت خودکار)
+    // بارگذاری عوارض به صورت خودکار غیرفعال شده است
+    // کاربر باید دکمه روبروی هر عارضه را بزند تا آن عارضه لود شود
+    
+    // کد قدیمی بارگذاری خودکار حذف شده است
+    /*
     const featureLayers = [];
     const selectedFeatureIdsForMap = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
     
