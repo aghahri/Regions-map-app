@@ -1561,8 +1561,17 @@ INDEX_TEMPLATE = """
     }
     
     function loadFeatureOnMap(featureId) {
-      // اگر قبلاً بارگذاری شده، نیازی به بارگذاری مجدد نیست
-      if (featureLayersMap[featureId]) {
+      // اگر قبلاً بارگذاری شده و روی نقشه است، نیازی به بارگذاری مجدد نیست
+      if (featureLayersMap[featureId] && map.hasLayer(featureLayersMap[featureId])) {
+        return;
+      }
+      
+      // اگر لایه وجود دارد اما از نقشه حذف شده، دوباره اضافه کن
+      if (featureLayersMap[featureId] && !map.hasLayer(featureLayersMap[featureId])) {
+        featureLayersMap[featureId].addTo(map);
+        if (featureLayersMap[featureId].bringToFront) {
+          featureLayersMap[featureId].bringToFront();
+        }
         return;
       }
       
@@ -1699,9 +1708,11 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       if (featureLayersMap[featureId]) {
-        map.removeLayer(featureLayersMap[featureId]);
-        delete featureLayersMap[featureId];
-        console.log('Feature layer removed:', featureId);
+        // فقط لایه را از نقشه حذف کن، اما در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
+        if (map.hasLayer(featureLayersMap[featureId])) {
+          map.removeLayer(featureLayersMap[featureId]);
+          console.log('Feature layer removed from map:', featureId);
+        }
       }
     }
     
