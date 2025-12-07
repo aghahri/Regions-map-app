@@ -1030,6 +1030,120 @@ MANAGE_LINKS_TEMPLATE = """
 </html>
 """
 
+MANAGE_FEATURE_LINKS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <title>مدیریت لینک‌های عوارض</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: sans-serif; background: #f4f6f8; margin: 0; padding: 0; direction: rtl; }
+    header { padding: 1.5rem; text-align: center; background: #1f4e5f; color: #fff; }
+    main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
+    .card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.07); }
+    button { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; background: #2a9d8f; color: #fff; margin-left: 0.5rem; }
+    button.back { background: #6c757d; }
+    button.save { background: #28a745; padding: 0.5rem 1rem; font-size: 0.9rem; }
+    .error { color: #d62828; margin-top: 0.75rem; }
+    .success { color: #28a745; margin-top: 0.75rem; padding: 0.5rem; background: #d4edda; border-radius: 6px; }
+    .feature-item { padding: 1rem; margin-bottom: 1rem; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
+    .feature-name { font-weight: bold; margin-bottom: 0.5rem; color: #1f4e5f; }
+    .link-input-group { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .link-prefix { color: #6c757d; }
+    input[type="text"] { flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px; }
+    .feature-form { margin-top: 0.5rem; }
+    .save-status { font-size: 0.85rem; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>مدیریت لینک‌های عوارض</h1>
+    <p>{{ map_name }}</p>
+  </header>
+  <main>
+    <div class="card">
+      <div style="margin-bottom: 1rem;">
+        <a href="/admin" style="text-decoration: none;">
+          <button type="button" class="back">← بازگشت به پنل ادمین</button>
+        </a>
+      </div>
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+        <div class="success">{{ success }}</div>
+      {% endif %}
+      <h3>لینک‌های عوارض ({{ features|length }} عارضه)</h3>
+      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/join/</code> شروع شوند. فقط قسمت بعد از join/ را وارد کنید. پیش‌فرض: nvsji</p>
+      {% for feature in features %}
+      <div class="feature-item">
+        <div class="feature-name">{{ feature.feature_name or feature.original_filename }}</div>
+        <form method="post" action="/admin/features/update-link/{{ feature.feature_id }}" class="feature-form">
+          <input type="hidden" name="map_id" value="{{ map_id }}" />
+          <div class="link-input-group">
+            <span class="link-prefix">tootapp.ir/join/</span>
+            <input type="text" name="link" value="{{ feature.link }}" placeholder="nvsji" required />
+            <button type="submit" class="save">ذخیره</button>
+          </div>
+          <div class="save-status" id="status_{{ feature.feature_id }}"></div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+  <script>
+    // مدیریت فرم‌های ذخیره
+    document.querySelectorAll('.feature-form').forEach(form => {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const featureId = this.action.split('/').pop();
+        const statusDiv = document.getElementById('status_' + featureId);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        
+        // نمایش loading
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'در حال ذخیره...';
+        statusDiv.textContent = '';
+        
+        try {
+          const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            statusDiv.textContent = '✓ ' + result.message;
+            statusDiv.style.color = '#28a745';
+            submitBtn.textContent = 'ذخیره';
+            submitBtn.disabled = false;
+            
+            // پاک کردن پیام بعد از 3 ثانیه
+            setTimeout(() => {
+              statusDiv.textContent = '';
+            }, 3000);
+          } else {
+            statusDiv.textContent = '✗ ' + (result.error || 'خطا در ذخیره');
+            statusDiv.style.color = '#d62828';
+            submitBtn.textContent = 'ذخیره';
+            submitBtn.disabled = false;
+          }
+        } catch (error) {
+          statusDiv.textContent = '✗ خطا در ذخیره';
+          statusDiv.style.color = '#d62828';
+          submitBtn.textContent = 'ذخیره';
+          submitBtn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+"""
+
 MANAGE_USERS_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fa">
