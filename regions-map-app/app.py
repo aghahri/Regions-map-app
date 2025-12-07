@@ -1745,8 +1745,8 @@ INDEX_TEMPLATE = """
       if (selectedFeatures.size > 0) {
         selectedDiv.style.display = 'block';
         selectedList.innerHTML = Array.from(selectedFeatures).map(id => {
-          const checkbox = document.getElementById(`feature-${id}`);
-          const name = checkbox ? checkbox.nextSibling.textContent.trim() : id;
+          const toggleBtn = document.getElementById(`toggle-${id}`);
+          const name = toggleBtn ? toggleBtn.previousSibling.textContent.trim() : id;
           return `<span style="display: inline-block; background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin: 0.25rem;">${name}</span>`;
         }).join('');
       } else {
