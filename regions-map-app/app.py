@@ -1471,7 +1471,9 @@ INDEX_TEMPLATE = """
     } catch (err) {
       console.warn('Cannot fit bounds', err);
     }
-
+    }
+    
+    // توابع global
     function loadMap(mapId) {
       window.location.href = '/map/' + mapId;
     }
