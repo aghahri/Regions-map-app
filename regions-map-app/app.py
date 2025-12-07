@@ -1251,17 +1251,21 @@ INDEX_TEMPLATE = """
   </main>
   <script>
     const map = L.map('map').setView([32.0, 53.0], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    
+    // اضافه کردن tile layer (نقشه جهان)
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    });
+    tileLayer.addTo(map);
 
     let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
     
-    // حذف تمام لایه‌های قبلی
+    // حذف فقط لایه‌های GeoJSON قبلی (نه tile layer)
     map.eachLayer(function(layer) {
-      if (layer instanceof L.GeoJSON) {
+      if (layer instanceof L.GeoJSON && layer !== tileLayer) {
         map.removeLayer(layer);
       }
     });
