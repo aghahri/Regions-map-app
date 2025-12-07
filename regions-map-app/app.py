@@ -1250,40 +1250,20 @@ INDEX_TEMPLATE = """
     </div>
   </main>
   <script>
-    // صبر کردن تا DOM و Leaflet کاملاً لود شوند
-    document.addEventListener('DOMContentLoaded', function() {
-      // بررسی اینکه Leaflet لود شده است
-      if (typeof L === 'undefined') {
-        console.error('Leaflet library not loaded!');
-        return;
-      }
-      
-      // بررسی اینکه div نقشه وجود دارد
-      const mapDiv = document.getElementById('map');
-      if (!mapDiv) {
-        console.error('Map div not found!');
-        return;
-      }
-      
-      // ایجاد نقشه
-      const map = L.map('map').setView([32.0, 53.0], 5);
-      
-      // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-        minZoom: 2
-      }).addTo(map);
-
-      // ادامه کد...
-      initializeMapLayers(map);
-    });
+    // ایجاد نقشه - مستقیماً initialize می‌شود
+    const map = L.map('map').setView([32.0, 53.0], 5);
     
-    function initializeMapLayers(map) {
-      // تعریف map به صورت global برای استفاده در توابع دیگر
-      window.map = map;
-      
-      let mainLayer = null; // لایر اصلی محلات
+    // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      minZoom: 2
+    }).addTo(map);
+
+    // تعریف map به صورت global برای استفاده در توابع دیگر
+    window.map = map;
+
+    let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
     
