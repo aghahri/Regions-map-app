@@ -1257,13 +1257,17 @@ INDEX_TEMPLATE = """
 
     let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
+    const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
+    
+    // حذف تمام لایه‌های قبلی
+    map.eachLayer(function(layer) {
+      if (layer instanceof L.GeoJSON) {
+        map.removeLayer(layer);
+      }
+    });
+    
+    // بارگذاری لایه محلات
     if (geojsonData) {
-      // فقط لایر محلات قدیمی را حذف کن، نه لایرهای عوارض
-      map.eachLayer(function(layer) {
-        if (layer instanceof L.GeoJSON && layer === mainLayer) {
-          map.removeLayer(layer);
-        }
-      });
       mainLayer = L.geoJSON(geojsonData, {
         style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1, zIndex: 100 }; },
         onEachFeature: function(feature, layer) {
@@ -1311,11 +1315,123 @@ INDEX_TEMPLATE = """
           }
         }
       }).addTo(map);
-      try {
-        map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
-      } catch (err) {
-        console.warn('Cannot fit bounds', err);
+    }
+    
+    // بارگذاری عوارض انتخاب شده
+    const featureLayers = [];
+    if (selectedFeaturesGeojson && Array.isArray(selectedFeaturesGeojson)) {
+      selectedFeaturesGeojson.forEach(function(featureGeojsonStr) {
+        try {
+          let featureGeojson = typeof featureGeojsonStr === 'string' ? JSON.parse(featureGeojsonStr) : featureGeojsonStr;
+          
+          if (featureGeojson && featureGeojson.type === 'FeatureCollection' && featureGeojson.features) {
+            const featureLayer = L.geoJSON(featureGeojson, {
+              pointToLayer: function(feature, latlng) {
+                return L.circleMarker(latlng, {
+                  radius: 10,
+                  fillColor: '#ff0000',
+                  color: '#cc0000',
+                  weight: 3,
+                  opacity: 1,
+                  fillOpacity: 0.9,
+                  zIndex: 1000
+                });
+              },
+              style: function(feature) {
+                return {
+                  color: '#ff0000',
+                  weight: 4,
+                  opacity: 0.8,
+                  fillOpacity: 0.5,
+                  fillColor: '#ff6b6b',
+                  zIndex: 1000
+                };
+              },
+              onEachFeature: function(feature, layer) {
+                if (feature.properties) {
+                  const props = feature.properties;
+                  const popupItems = [];
+                  
+                  // نمایش نام یا عنوان عارضه
+                  const nameFields = ['name', 'نام', 'title', 'عنوان', 'shop', 'فروشگاه', 'store'];
+                  let name = null;
+                  for (const field of nameFields) {
+                    for (const key in props) {
+                      if (key.toLowerCase().includes(field.toLowerCase())) {
+                        name = props[key];
+                        break;
+                      }
+                    }
+                    if (name) break;
+                  }
+                  
+                  if (name) {
+                    popupItems.push(`<strong style="font-size: 1.1em; color: #2a9d8f;">${name}</strong>`);
+                  }
+                  
+                  // نمایش سایر ویژگی‌ها
+                  for (const key in props) {
+                    if (key.toLowerCase() !== 'geometry') {
+                      const value = props[key];
+                      if (value !== undefined && value !== null && String(value).trim() !== '') {
+                        let skip = false;
+                        for (const field of nameFields) {
+                          if (key.toLowerCase().includes(field.toLowerCase())) {
+                            skip = true;
+                            break;
+                          }
+                        }
+                        if (!skip) {
+                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (popupItems.length > 0) {
+                    layer.bindPopup(popupItems.join('<br/>'));
+                  }
+                }
+              }
+            });
+            
+            featureLayer.addTo(map);
+            if (featureLayer.bringToFront) {
+              featureLayer.bringToFront();
+            }
+            featureLayers.push(featureLayer);
+          }
+        } catch (e) {
+          console.error('Error loading feature:', e);
+        }
+      });
+    }
+    
+    // تنظیم view روی هر دو لایه (محلات و عوارض)
+    try {
+      const bounds = [];
+      if (mainLayer) {
+        bounds.push(mainLayer.getBounds());
       }
+      featureLayers.forEach(function(layer) {
+        try {
+          bounds.push(layer.getBounds());
+        } catch (e) {
+          console.warn('Error getting feature layer bounds:', e);
+        }
+      });
+      
+      if (bounds.length > 0) {
+        let combinedBounds = bounds[0];
+        for (let i = 1; i < bounds.length; i++) {
+          combinedBounds = combinedBounds.extend(bounds[i]);
+        }
+        map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+      } else if (mainLayer) {
+        map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
+      }
+    } catch (err) {
+      console.warn('Cannot fit bounds', err);
     }
 
     function loadMap(mapId) {
@@ -1365,7 +1481,17 @@ INDEX_TEMPLATE = """
     // مدیریت عوارض محله
     const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
     const selectedFeatures = new Set();
-    const featureLayers = {};
+    
+    // دریافت عوارض انتخاب شده از URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const featuresParam = urlParams.get('features');
+    if (featuresParam) {
+      featuresParam.split(',').forEach(function(fid) {
+        if (fid.trim()) {
+          selectedFeatures.add(fid.trim());
+        }
+      });
+    }
 
     if (selectedMapId) {
       // بارگذاری لیست عوارض
@@ -1382,6 +1508,12 @@ INDEX_TEMPLATE = """
               checkbox.id = `feature-${feature.feature_id}`;
               checkbox.value = feature.feature_id;
               checkbox.style.marginLeft = '0.5rem';
+              
+              // علامت زدن checkbox اگر در لیست انتخاب شده‌ها باشد
+              if (selectedFeatures.has(feature.feature_id)) {
+                checkbox.checked = true;
+              }
+              
               checkbox.onchange = function() {
                 toggleFeature(feature.feature_id, this.checked);
               };
@@ -1411,413 +1543,28 @@ INDEX_TEMPLATE = """
     function toggleFeature(featureId, show) {
       if (show) {
         selectedFeatures.add(featureId);
-        loadFeatureOnMap(featureId);
       } else {
         selectedFeatures.delete(featureId);
-        removeFeatureFromMap(featureId);
       }
-      updateSelectedList();
-    }
-
-    function loadFeatureOnMap(featureId) {
-      if (featureLayers[featureId]) {
-        return; // قبلاً بارگذاری شده
-      }
-
-      console.log('Loading feature:', featureId);
-      
-      fetch(`/api/features/${featureId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Feature data received:', data);
-          
-          if (data.success && data.geojson) {
-            let geojsonData = data.geojson;
-            
-            // اگر geojson یک string است، parse کن
-            if (typeof geojsonData === 'string') {
-              try {
-                geojsonData = JSON.parse(geojsonData);
-              } catch (e) {
-                console.error('Error parsing GeoJSON string:', e);
-                alert('خطا در parse کردن GeoJSON: ' + e.message);
-                return;
-              }
-            }
-            
-            // بررسی ساختار GeoJSON
-            if (!geojsonData) {
-              console.error('GeoJSON data is null or undefined');
-              alert('داده GeoJSON خالی است');
-              return;
-            }
-            
-            // بررسی اینکه آیا FeatureCollection است یا Feature
-            const isFeatureCollection = geojsonData.type === 'FeatureCollection' && Array.isArray(geojsonData.features);
-            const isFeature = geojsonData.type === 'Feature' && geojsonData.geometry;
-            const isGeometry = geojsonData.type && geojsonData.coordinates;
-            
-            if (!isFeatureCollection && !isFeature && !isGeometry) {
-              console.error('Invalid GeoJSON structure:', geojsonData);
-              console.error('Type:', geojsonData.type);
-              console.error('Has features:', Array.isArray(geojsonData.features));
-              console.error('Has geometry:', !!geojsonData.geometry);
-              alert('ساختار GeoJSON نامعتبر است. نوع: ' + (geojsonData.type || 'نامشخص'));
-              return;
-            }
-            
-            // اگر FeatureCollection است، بررسی کن که features خالی نباشد
-            if (isFeatureCollection && geojsonData.features.length === 0) {
-              console.warn('FeatureCollection is empty');
-              alert('فایل GeoJSON خالی است (هیچ عارضه‌ای ندارد)');
-              return;
-            }
-            
-            console.log('Creating GeoJSON layer with data:', geojsonData);
-            console.log('GeoJSON type:', geojsonData.type);
-            if (isFeatureCollection) {
-              console.log('Number of features:', geojsonData.features.length);
-            }
-            
-            const layer = L.geoJSON(geojsonData, {
-              style: function(feature) {
-                // استایل برای نقاط (Point) - این برای non-point features است
-                if (feature.geometry && feature.geometry.type === 'Point') {
-                  return {
-                    radius: 10,
-                    fillColor: '#ff6b6b',
-                    color: '#d63031',
-                    weight: 3,
-                    opacity: 1,
-                    fillOpacity: 0.9
-                  };
-                }
-                // استایل برای خطوط (LineString, MultiLineString)
-                if (feature.geometry && (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString')) {
-                  return {
-                    color: '#ff0000',
-                    weight: 5,
-                    opacity: 1
-                  };
-                }
-                // استایل برای چندضلعی‌ها (Polygon, MultiPolygon)
-                return {
-                  color: '#ff0000',
-                  weight: 4,
-                  fillOpacity: 0.6,
-                  fillColor: '#ff6b6b',
-                  opacity: 1
-                };
-              },
-              pointToLayer: function(feature, latlng) {
-                // برای نقاط از CircleMarker استفاده کن با سایز بزرگتر و قابل مشاهده
-                return L.circleMarker(latlng, {
-                  radius: 12,
-                  fillColor: '#ff0000',
-                  color: '#cc0000',
-                  weight: 4,
-                  opacity: 1,
-                  fillOpacity: 1
-                });
-              },
-              onEachFeature: function(feature, layer) {
-                if (feature.properties) {
-                  const props = feature.properties;
-                  const popupItems = [];
-                  
-                  // نمایش نام یا عنوان عارضه
-                  const nameFields = ['name', 'نام', 'title', 'عنوان', 'shop', 'فروشگاه', 'store'];
-                  let name = null;
-                  for (const field of nameFields) {
-                    for (const key in props) {
-                      if (key.toLowerCase().includes(field.toLowerCase())) {
-                        name = props[key];
-                        break;
-                      }
-                    }
-                    if (name) break;
-                  }
-                  
-                  if (name) {
-                    popupItems.push(`<strong style="font-size: 1.1em; color: #2a9d8f;">${name}</strong>`);
-                  }
-                  
-                  // نمایش سایر ویژگی‌ها
-                  for (const key in props) {
-                    if (key.toLowerCase() !== 'geometry') {
-                      const value = props[key];
-                      if (value !== undefined && value !== null && String(value).trim() !== '') {
-                        // نادیده گرفتن فیلدهایی که قبلاً نمایش داده شده‌اند
-                        let skip = false;
-                        for (const field of nameFields) {
-                          if (key.toLowerCase().includes(field.toLowerCase())) {
-                            skip = true;
-                            break;
-                          }
-                        }
-                        if (!skip) {
-                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
-                        }
-                      }
-                    }
-                  }
-                  
-                  if (popupItems.length > 0) {
-                    layer.bindPopup(popupItems.join('<br/>'));
-                  }
-                }
-              }
-            });
-            
-            // بررسی اینکه آیا لایر خالی است
-            if (!layer || layer.getLayers().length === 0) {
-              console.error('Layer is empty after creation');
-              alert('لایر خالی است. ممکن است مختصات خارج از محدوده نقشه باشد.');
-              return;
-            }
-            
-            // تنظیم z-index بالا برای لایر عوارض (قبل از اضافه کردن به نقشه)
-            if (layer.setZIndex) {
-              layer.setZIndex(1000); // z-index بالا برای عوارض
-            }
-            
-            // اطمینان از اینکه لایر محلات روی نقشه است و قابل دیدن است
-            ensureMainLayerVisible();
-            
-            // اضافه کردن لایر عوارض به نقشه
-            layer.addTo(map);
-            
-            // آوردن لایر عوارض به جلو (بالای لایر محلات)
-            if (layer.bringToFront) {
-              layer.bringToFront();
-            }
-            
-            // اطمینان از اینکه لایر محلات زیر عوارض است
-            if (mainLayer && mainLayer.bringToBack) {
-              mainLayer.bringToBack();
-            }
-            
-            // اطمینان از اینکه لایر محلات قابل دیدن است (اگر قبلاً حذف شده بود)
-            if (mainLayer && !map.hasLayer(mainLayer)) {
-              mainLayer.addTo(map);
-              if (mainLayer.bringToBack) {
-                mainLayer.bringToBack();
-              }
-            }
-            
-            // همچنین هر لایر داخلی را به جلو بیاور و z-index تنظیم کن
-            layer.eachLayer(function(l) {
-              if (l.bringToFront) {
-                l.bringToFront();
-              }
-              // تنظیم z-index برای هر لایر داخلی
-              if (l.setZIndex) {
-                l.setZIndex(1000);
-              }
-              // برای CircleMarker و Marker
-              if (l.setZIndexOffset) {
-                l.setZIndexOffset(1000);
-              }
-              // برای Path (Polyline, Polygon)
-              if (l.options) {
-                l.options.zIndex = 1000;
-                if (l.setStyle) {
-                  l.setStyle({ zIndex: 1000 });
-                }
-              }
-            });
-            
-            // اطمینان از اینکه لایر عوارض بالای همه لایرهای دیگر است
-            setTimeout(function() {
-              if (layer.bringToFront) {
-                layer.bringToFront();
-              }
-              layer.eachLayer(function(l) {
-                if (l.bringToFront) {
-                  l.bringToFront();
-                }
-              });
-            }, 100);
-            
-            featureLayers[featureId] = layer;
-            
-            const bounds = layer.getBounds();
-            console.log('Layer added to map');
-            console.log('Bounds:', bounds);
-            console.log('Number of features in layer:', layer.getLayers().length);
-            
-            // بررسی اینکه bounds معتبر است
-            if (!bounds || !bounds.isValid || !bounds.isValid()) {
-              console.warn('Layer bounds are invalid');
-            }
-            
-            // شمارش انواع مختلف عوارض
-            const layerTypes = {};
-            layer.eachLayer(function(l) {
-              const geomType = l.feature?.geometry?.type || 'unknown';
-              layerTypes[geomType] = (layerTypes[geomType] || 0) + 1;
-            });
-            console.log('Layer types:', layerTypes);
-            
-            // نمایش پیام موفقیت
-            const statusDiv = document.getElementById('featureUploadStatus');
-            if (statusDiv) {
-              const typesSummary = Object.entries(layerTypes).map(([type, count]) => `${type}: ${count}`).join(', ');
-              statusDiv.innerHTML = `<div class="success" style="margin-top: 1rem; padding: 0.5rem; background: #d4edda; color: #155724; border-radius: 6px;">عوارض با موفقیت نمایش داده شد (${layer.getLayers().length} عارضه - ${typesSummary})</div>`;
-              setTimeout(() => {
-                if (statusDiv) statusDiv.innerHTML = '';
-              }, 5000);
-            }
-            
-            // تنظیم view روی هر دو لایه (محلات و عوارض)
-            try {
-              const bounds = layer.getBounds();
-              if (bounds && bounds.isValid && bounds.isValid()) {
-                console.log('Fitting bounds to features and neighborhoods');
-                // همیشه bounds را با لایر محلات ترکیب کن تا هر دو قابل دیدن باشند
-                if (mainLayer && mainLayer.getBounds) {
-                  try {
-                    const mainBounds = mainLayer.getBounds();
-                    if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
-                      // ترکیب bounds محلات و عوارض
-                      const combinedBounds = bounds.extend(mainBounds);
-                      map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-                      console.log('Fitted to combined bounds (neighborhoods + features)');
-                    } else {
-                      // اگر bounds محلات معتبر نیست، فقط عوارض را نمایش بده
-                      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-                      console.log('Fitted to feature bounds only (main layer bounds invalid)');
-                    }
-                  } catch (e) {
-                    console.warn('Error extending bounds:', e);
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-                  }
-                } else {
-                  // اگر لایر محلات وجود ندارد، فقط عوارض را نمایش بده
-                  map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-                  console.log('Fitted to feature bounds (no main layer)');
-                }
-              } else {
-                console.warn('Invalid bounds, cannot fit. Bounds:', bounds);
-                // اگر bounds معتبر نیست، سعی کن مختصات features را پیدا کن
-                let hasValidCoords = false;
-                layer.eachLayer(function(l) {
-                  if (l.getLatLng) {
-                    const latlng = l.getLatLng();
-                    if (latlng && latlng.lat && latlng.lng) {
-                      // اگر لایر محلات وجود دارد، view را طوری تنظیم کن که هر دو قابل دیدن باشند
-                      if (mainLayer && mainLayer.getBounds) {
-                        try {
-                          const mainBounds = mainLayer.getBounds();
-                          if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
-                            const pointBounds = L.latLngBounds([latlng]);
-                            const combinedBounds = pointBounds.extend(mainBounds);
-                            map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-                          } else {
-                            map.setView([latlng.lat, latlng.lng], 15);
-                          }
-                        } catch (e) {
-                          map.setView([latlng.lat, latlng.lng], 15);
-                        }
-                      } else {
-                        map.setView([latlng.lat, latlng.lng], 15);
-                      }
-                      hasValidCoords = true;
-                      return false; // break
-                    }
-                  } else if (l.getBounds) {
-                    try {
-                      const lBounds = l.getBounds();
-                      if (lBounds && lBounds.isValid && lBounds.isValid()) {
-                        // اگر لایر محلات وجود دارد، bounds را ترکیب کن
-                        if (mainLayer && mainLayer.getBounds) {
-                          try {
-                            const mainBounds = mainLayer.getBounds();
-                            if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
-                              const combinedBounds = lBounds.extend(mainBounds);
-                              map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-                            } else {
-                              map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
-                            }
-                          } catch (e) {
-                            map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
-                          }
-                        } else {
-                          map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
-                        }
-                        hasValidCoords = true;
-                        return false; // break
-                      }
-                    } catch (e) {
-                      console.warn('Error getting layer bounds:', e);
-                    }
-                  }
-                });
-                if (!hasValidCoords) {
-                  console.error('Could not find valid coordinates in any layer');
-                }
-              }
-            } catch (err) {
-              console.error('Cannot fit bounds:', err);
-            }
-          } else {
-            console.error('No GeoJSON data in response:', data);
-            alert('داده‌ای برای نمایش یافت نشد. لطفاً فایل GeoJSON را بررسی کنید.');
-          }
-        })
-        .catch(error => {
-          console.error('Error loading feature:', error);
-          alert('خطا در بارگذاری عارضه: ' + error.message);
-        });
-    }
-
-    function removeFeatureFromMap(featureId) {
-      if (featureLayers[featureId]) {
-        map.removeLayer(featureLayers[featureId]);
-        delete featureLayers[featureId];
-        console.log('Feature layer removed:', featureId);
-      }
+      // reload صفحه با عوارض انتخاب شده
+      reloadPageWithFeatures();
     }
     
-    // تابع برای اطمینان از اینکه لایر محلات حفظ می‌شود و قابل دیدن است
-    function ensureMainLayerVisible() {
-      if (mainLayer) {
-        // اگر لایر محلات روی نقشه نیست، آن را اضافه کن
-        if (!map.hasLayer(mainLayer)) {
-          console.log('Re-adding main layer (neighborhoods) to map');
-          mainLayer.addTo(map);
-        }
-        // تنظیم z-index پایین برای لایر محلات (زیر عوارض)
-        if (mainLayer.setZIndex) {
-          mainLayer.setZIndex(100);
-        }
-        // اطمینان از اینکه لایر محلات در پشت است
-        if (mainLayer.bringToBack) {
-          mainLayer.bringToBack();
-        }
+    function reloadPageWithFeatures() {
+      const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
+      if (!selectedMapId) return;
+      
+      // ساخت URL با عوارض انتخاب شده
+      const featureIds = Array.from(selectedFeatures);
+      let url = `/map/${selectedMapId}`;
+      if (featureIds.length > 0) {
+        url += '?features=' + featureIds.join(',');
       }
+      
+      // reload صفحه
+      window.location.href = url;
     }
 
-    function updateSelectedList() {
-      const selectedDiv = document.getElementById('selected-features');
-      const selectedList = document.getElementById('selected-list');
-      
-      if (selectedFeatures.size > 0) {
-        selectedDiv.style.display = 'block';
-        selectedList.innerHTML = Array.from(selectedFeatures).map(id => {
-          const checkbox = document.getElementById(`feature-${id}`);
-          const name = checkbox ? checkbox.nextSibling.textContent.trim() : id;
-          return `<span style="display: inline-block; background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin: 0.25rem;">${name}</span>`;
-        }).join('');
-      } else {
-        selectedDiv.style.display = 'none';
-      }
-    }
   </script>
 </body>
 </html>
@@ -1833,6 +1580,7 @@ def index():
     selected_map_id = request.args.get("map_id")
     geojson = None
     summary = None
+    selected_features_geojson = []  # لیست عوارض انتخاب شده
 
     if selected_map_id:
         map_data = load_map_data(selected_map_id)
@@ -1842,6 +1590,15 @@ def index():
             # اتصال لینک‌های توت‌اپ (با استفاده از لینک‌های ذخیره شده)
             if geojson:
                 _attach_tootapp_links(geojson, selected_map_id)
+        
+        # بارگذاری عوارض انتخاب شده از query string
+        features_param = request.args.get("features", "")
+        if features_param:
+            feature_ids = [fid.strip() for fid in features_param.split(",") if fid.strip()]
+            for feature_id in feature_ids:
+                feature_data = load_feature_data(feature_id)
+                if feature_data and feature_data.get("geojson"):
+                    selected_features_geojson.append(feature_data.get("geojson"))
 
     return render_template_string(
         INDEX_TEMPLATE,
@@ -1849,12 +1606,17 @@ def index():
         selected_map_id=selected_map_id,
         geojson=json.dumps(geojson) if geojson else None,
         summary=summary,
+        selected_features_geojson=[json.dumps(fg) for fg in selected_features_geojson] if selected_features_geojson else [],
     )
 
 
 @app.route("/map/<map_id>")
 def view_map(map_id: str):
     """مشاهده نقشه خاص"""
+    # حفظ query string (features) در redirect
+    features = request.args.get("features")
+    if features:
+        return redirect(url_for("index", map_id=map_id, features=features))
     return redirect(url_for("index", map_id=map_id))
 
 
