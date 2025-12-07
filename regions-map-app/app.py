@@ -1604,11 +1604,12 @@ INDEX_TEMPLATE = """
           bounds.push(mainLayer.getBounds());
         }
         
-        // اضافه کردن bounds عوارض فعال
+        // اضافه کردن bounds عوارض فعال (فقط آنهایی که روی نقشه هستند)
         Object.keys(featureLayersMap).forEach(function(featureId) {
-          if (selectedFeatures.has(featureId) && featureLayersMap[featureId]) {
+          // فقط عوارضی که در selectedFeatures هستند و روی نقشه هستند
+          if (selectedFeatures.has(featureId)) {
             const layer = featureLayersMap[featureId];
-            if (map.hasLayer(layer) && layer.getBounds) {
+            if (layer && map.hasLayer(layer) && layer.getBounds) {
               try {
                 bounds.push(layer.getBounds());
               } catch (e) {
