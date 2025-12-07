@@ -1250,27 +1250,19 @@ INDEX_TEMPLATE = """
     </div>
   </main>
   <script>
-    // ایجاد نقشه - مستقیماً initialize می‌شود
     const map = L.map('map').setView([32.0, 53.0], 5);
-    
-    // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-      minZoom: 2
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
-
-    // تعریف map به صورت global برای استفاده در توابع دیگر
-    window.map = map;
 
     let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
     
-    // حذف فقط لایه‌های GeoJSON قبلی (نه tile layer)
-    window.map.eachLayer(function(layer) {
+    // حذف تمام لایه‌های قبلی
+    map.eachLayer(function(layer) {
       if (layer instanceof L.GeoJSON) {
-        window.map.removeLayer(layer);
+        map.removeLayer(layer);
       }
     });
     
@@ -1322,17 +1314,12 @@ INDEX_TEMPLATE = """
             layer.bindPopup(popupContent);
           }
         }
-      }).addTo(window.map);
+      }).addTo(map);
     }
     
     // بارگذاری عوارض انتخاب شده (از server - به صورت خودکار)
     const featureLayers = [];
     const selectedFeatureIdsForMap = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
-    
-    // اطمینان از اینکه featureLayersMap در scope درست است
-    if (typeof featureLayersMap === 'undefined') {
-      window.featureLayersMap = {};
-    }
     
     if (selectedFeaturesGeojson && Array.isArray(selectedFeaturesGeojson) && selectedFeatureIdsForMap.length > 0) {
       selectedFeaturesGeojson.forEach(function(featureGeojsonStr, index) {
@@ -1413,7 +1400,7 @@ INDEX_TEMPLATE = """
               }
             });
             
-            featureLayer.addTo(window.map);
+            featureLayer.addTo(map);
             if (featureLayer.bringToFront) {
               featureLayer.bringToFront();
             }
@@ -1421,9 +1408,6 @@ INDEX_TEMPLATE = """
             
             // ذخیره در featureLayersMap برای حذف بعدی
             featureLayersMap[featureId] = featureLayer;
-            
-            // اضافه کردن featureId به لایه برای شناسایی بعدی
-            featureLayer.featureId = featureId;
           }
         } catch (e) {
           console.error('Error loading feature:', e);
@@ -1450,16 +1434,14 @@ INDEX_TEMPLATE = """
         for (let i = 1; i < bounds.length; i++) {
           combinedBounds = combinedBounds.extend(bounds[i]);
         }
-        window.map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+        map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
       } else if (mainLayer) {
-        window.map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
+        map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
       }
     } catch (err) {
       console.warn('Cannot fit bounds', err);
     }
-    }
-    
-    // توابع global
+
     function loadMap(mapId) {
       window.location.href = '/map/' + mapId;
     }
@@ -1589,11 +1571,7 @@ INDEX_TEMPLATE = """
         });
     }
 
-    // نگهداری لایه‌های عوارض - استفاده از window برای دسترسی global
-    if (typeof window.featureLayersMap === 'undefined') {
-      window.featureLayersMap = {};
-    }
-    const featureLayersMap = window.featureLayersMap;
+    const featureLayersMap = {}; // نگهداری لایه‌های عوارض
     
     function toggleFeature(featureId, show) {
       if (show) {
@@ -1627,7 +1605,7 @@ INDEX_TEMPLATE = """
         Object.keys(featureLayersMap).forEach(function(featureId) {
           if (selectedFeatures.has(featureId) && featureLayersMap[featureId]) {
             const layer = featureLayersMap[featureId];
-            if (window.map && window.map.hasLayer(layer) && layer.getBounds) {
+            if (map.hasLayer(layer) && layer.getBounds) {
               try {
                 bounds.push(layer.getBounds());
               } catch (e) {
@@ -1643,10 +1621,10 @@ INDEX_TEMPLATE = """
           for (let i = 1; i < bounds.length; i++) {
             combinedBounds = combinedBounds.extend(bounds[i]);
           }
-          window.map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+          map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
         } else if (mainLayer && mainLayer.getBounds) {
           // اگر فقط نقشه محلات است
-          window.map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
+          map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
         }
       } catch (err) {
         console.warn('Cannot refresh map view:', err);
@@ -1655,13 +1633,13 @@ INDEX_TEMPLATE = """
     
     function loadFeatureOnMap(featureId) {
       // اگر قبلاً بارگذاری شده و روی نقشه است، نیازی به بارگذاری مجدد نیست
-      if (featureLayersMap[featureId] && window.map && window.map.hasLayer(featureLayersMap[featureId])) {
+      if (featureLayersMap[featureId] && map.hasLayer(featureLayersMap[featureId])) {
         return Promise.resolve();
       }
       
       // اگر لایه وجود دارد اما از نقشه حذف شده، دوباره اضافه کن
-      if (featureLayersMap[featureId] && window.map && !window.map.hasLayer(featureLayersMap[featureId])) {
-        featureLayersMap[featureId].addTo(window.map);
+      if (featureLayersMap[featureId] && !map.hasLayer(featureLayersMap[featureId])) {
+        featureLayersMap[featureId].addTo(map);
         if (featureLayersMap[featureId].bringToFront) {
           featureLayersMap[featureId].bringToFront();
         }
@@ -1764,16 +1742,13 @@ INDEX_TEMPLATE = """
               }
             });
             
-            featureLayer.addTo(window.map);
+            featureLayer.addTo(map);
             if (featureLayer.bringToFront) {
               featureLayer.bringToFront();
             }
             
             // ذخیره لایه برای حذف بعدی
             featureLayersMap[featureId] = featureLayer;
-            
-            // اضافه کردن featureId به لایه برای شناسایی بعدی
-            featureLayer.featureId = featureId;
             
             // view در تابع refreshMapView تنظیم می‌شود
           }
@@ -1785,70 +1760,40 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       console.log('Attempting to remove feature:', featureId);
-      console.log('featureLayersMap keys:', Object.keys(featureLayersMap));
+      console.log('featureLayersMap:', featureLayersMap);
       
-      let removed = false;
-      
-      // روش 1: استفاده از featureLayersMap
       if (featureLayersMap[featureId]) {
         const layer = featureLayersMap[featureId];
-        console.log('Found layer in featureLayersMap:', layer);
+        console.log('Layer found:', layer);
+        console.log('Layer on map?', map.hasLayer(layer));
         
-        // حذف تمام لایه‌های داخلی
-        if (layer.eachLayer) {
-          layer.eachLayer(function(innerLayer) {
-            if (window.map && window.map.hasLayer(innerLayer)) {
-              window.map.removeLayer(innerLayer);
-            }
-          });
-        }
-        
-        // حذف لایه اصلی
-        if (window.map && window.map.hasLayer(layer)) {
-          window.map.removeLayer(layer);
-          removed = true;
+        // حذف لایه از نقشه
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
           console.log('Feature layer removed from map:', featureId);
+        } else {
+          console.log('Layer not on map, trying to remove anyway');
+          // اگر لایه روی نقشه نیست، سعی کن آن را حذف کن
+          try {
+            map.removeLayer(layer);
+          } catch (e) {
+            console.error('Error removing layer:', e);
+          }
         }
-      }
-      
-      // روش 2: جستجو در همه لایه‌های نقشه (fallback)
-      if (!removed) {
-        window.map.eachLayer(function(l) {
+        // لایه را در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
+      } else {
+        console.log('Feature layer not found in featureLayersMap:', featureId);
+        // اگر لایه در featureLayersMap نیست، سعی کن همه لایه‌های GeoJSON را بررسی کن
+        map.eachLayer(function(l) {
           if (l instanceof L.GeoJSON && l !== mainLayer) {
-            // بررسی featureId ذخیره شده در لایه
-            if (l.featureId === featureId) {
-              // حذف تمام لایه‌های داخلی
-              if (l.eachLayer) {
-                l.eachLayer(function(innerLayer) {
-                  if (window.map && window.map.hasLayer(innerLayer)) {
-                    window.map.removeLayer(innerLayer);
-                  }
-                });
-              }
-              window.map.removeLayer(l);
-              removed = true;
-              console.log('Feature layer removed by searching:', featureId);
-              return false; // break
+            // بررسی اینکه آیا این لایه مربوط به این عارضه است
+            const layerFeatureId = l.featureId || l.options?.featureId;
+            if (layerFeatureId === featureId) {
+              map.removeLayer(l);
+              console.log('Removed layer by checking all layers:', featureId);
             }
           }
         });
-      }
-      
-      if (!removed) {
-        console.warn('Could not remove feature layer:', featureId);
-      }
-    }
-          if (l.featureId === featureId) {
-            window.map.removeLayer(l);
-            removed = true;
-            console.log('Feature layer removed from map (method 2):', featureId);
-            return false; // break
-          }
-        }
-      });
-      
-      if (!removed) {
-        console.warn('Could not remove feature layer:', featureId);
       }
     }
     
@@ -1867,14 +1812,7 @@ INDEX_TEMPLATE = """
         selectedDiv.style.display = 'none';
       }
     }
-    
-    // فراخوانی initMap بعد از لود شدن DOM
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initMap);
-    } else {
-      // DOM already loaded
-      initMap();
-    }
+
   </script>
 </body>
 </html>
