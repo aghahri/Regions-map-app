@@ -1508,30 +1508,52 @@ INDEX_TEMPLATE = """
             featuresList.innerHTML = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
             
             data.features.forEach(feature => {
-              const checkbox = document.createElement('input');
-              checkbox.type = 'checkbox';
-              checkbox.id = `feature-${feature.feature_id}`;
-              checkbox.value = feature.feature_id;
-              checkbox.style.marginLeft = '0.5rem';
+              const isActive = selectedFeatures.has(feature.feature_id);
               
-              // علامت زدن checkbox اگر در لیست انتخاب شده‌ها باشد
-              if (selectedFeatures.has(feature.feature_id)) {
-                checkbox.checked = true;
+              // ایجاد دکمه خاموش/روشن
+              const toggleBtn = document.createElement('button');
+              toggleBtn.type = 'button';
+              toggleBtn.id = `toggle-${feature.feature_id}`;
+              toggleBtn.className = 'feature-toggle-btn';
+              toggleBtn.style.cssText = 'padding: 0.4rem 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-left: 0.5rem; min-width: 70px; transition: all 0.3s;';
+              
+              // تنظیم استایل و متن بر اساس وضعیت
+              if (isActive) {
+                toggleBtn.textContent = 'روشن';
+                toggleBtn.style.backgroundColor = '#28a745';
+                toggleBtn.style.color = '#fff';
+              } else {
+                toggleBtn.textContent = 'خاموش';
+                toggleBtn.style.backgroundColor = '#dc3545';
+                toggleBtn.style.color = '#fff';
               }
               
-              checkbox.onchange = function() {
-                toggleFeature(feature.feature_id, this.checked);
+              toggleBtn.onclick = function() {
+                const newState = !selectedFeatures.has(feature.feature_id);
+                toggleFeature(feature.feature_id, newState);
+                
+                // به‌روزرسانی ظاهر دکمه
+                if (newState) {
+                  this.textContent = 'روشن';
+                  this.style.backgroundColor = '#28a745';
+                } else {
+                  this.textContent = 'خاموش';
+                  this.style.backgroundColor = '#dc3545';
+                }
               };
               
-              const label = document.createElement('label');
-              label.htmlFor = `feature-${feature.feature_id}`;
-              label.style.cursor = 'pointer';
-              label.style.display = 'flex';
-              label.style.alignItems = 'center';
-              label.appendChild(checkbox);
-              label.appendChild(document.createTextNode(` ${feature.feature_name || feature.original_filename}`));
+              // ایجاد container برای هر عارضه
+              const featureItem = document.createElement('div');
+              featureItem.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 6px;';
               
-              featuresList.appendChild(label);
+              const featureName = document.createElement('span');
+              featureName.textContent = feature.feature_name || feature.original_filename;
+              featureName.style.cssText = 'flex: 1; margin-left: 0.5rem;';
+              
+              featureItem.appendChild(featureName);
+              featureItem.appendChild(toggleBtn);
+              
+              featuresList.appendChild(featureItem);
             });
             
             featuresList.innerHTML += '</div>';
