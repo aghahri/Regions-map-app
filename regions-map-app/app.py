@@ -1421,28 +1421,11 @@ INDEX_TEMPLATE = """
         }
       });
     }
+    */
     
-    // تنظیم view روی هر دو لایه (محلات و عوارض)
+    // تنظیم view روی نقشه محلات (بدون عوارض)
     try {
-      const bounds = [];
-      if (mainLayer) {
-        bounds.push(mainLayer.getBounds());
-      }
-      featureLayers.forEach(function(layer) {
-        try {
-          bounds.push(layer.getBounds());
-        } catch (e) {
-          console.warn('Error getting feature layer bounds:', e);
-        }
-      });
-      
-      if (bounds.length > 0) {
-        let combinedBounds = bounds[0];
-        for (let i = 1; i < bounds.length; i++) {
-          combinedBounds = combinedBounds.extend(bounds[i]);
-        }
-        map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-      } else if (mainLayer) {
+      if (mainLayer && mainLayer.getBounds) {
         map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
       }
     } catch (err) {
