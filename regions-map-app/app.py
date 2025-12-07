@@ -1537,32 +1537,180 @@ INDEX_TEMPLATE = """
         });
     }
 
+    const featureLayersMap = {}; // نگهداری لایه‌های عوارض
+    
     function toggleFeature(featureId, show) {
       if (show) {
         selectedFeatures.add(featureId);
+        // بارگذاری عارضه از API و نمایش روی نقشه
+        loadFeatureOnMap(featureId);
       } else {
         selectedFeatures.delete(featureId);
+        // حذف عارضه از نقشه
+        removeFeatureFromMap(featureId);
       }
-      // reload صفحه با عوارض انتخاب شده
-      reloadPageWithFeatures();
+      updateSelectedList();
     }
     
-    function reloadPageWithFeatures() {
-      const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
-      if (!selectedMapId) return;
-      
-      // ساخت URL با عوارض انتخاب شده
-      const featureIds = Array.from(selectedFeatures);
-      const currentUrl = new URL(window.location.href);
-      
-      if (featureIds.length > 0) {
-        currentUrl.searchParams.set('feature_ids', featureIds.join(','));
-      } else {
-        currentUrl.searchParams.delete('feature_ids');
+    function loadFeatureOnMap(featureId) {
+      // اگر قبلاً بارگذاری شده، نیازی به بارگذاری مجدد نیست
+      if (featureLayersMap[featureId]) {
+        return;
       }
       
-      // reload صفحه
-      window.location.href = currentUrl.toString();
+      console.log('Loading feature:', featureId);
+      
+      fetch(`/api/features/${featureId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success && data.geojson) {
+            let geojsonData = data.geojson;
+            
+            // اگر geojson یک string است، parse کن
+            if (typeof geojsonData === 'string') {
+              try {
+                geojsonData = JSON.parse(geojsonData);
+              } catch (e) {
+                console.error('Error parsing GeoJSON string:', e);
+                return;
+              }
+            }
+            
+            if (!geojsonData || !geojsonData.type) {
+              console.error('Invalid GeoJSON data');
+              return;
+            }
+            
+            const featureLayer = L.geoJSON(geojsonData, {
+              pointToLayer: function(feature, latlng) {
+                return L.circleMarker(latlng, {
+                  radius: 10,
+                  fillColor: '#ff0000',
+                  color: '#cc0000',
+                  weight: 3,
+                  opacity: 1,
+                  fillOpacity: 0.9,
+                  zIndex: 1000
+                });
+              },
+              style: function(feature) {
+                return {
+                  color: '#ff0000',
+                  weight: 4,
+                  opacity: 0.8,
+                  fillOpacity: 0.5,
+                  fillColor: '#ff6b6b',
+                  zIndex: 1000
+                };
+              },
+              onEachFeature: function(feature, layer) {
+                if (feature.properties) {
+                  const props = feature.properties;
+                  const popupItems = [];
+                  
+                  const nameFields = ['name', 'نام', 'title', 'عنوان', 'shop', 'فروشگاه', 'store'];
+                  let name = null;
+                  for (const field of nameFields) {
+                    for (const key in props) {
+                      if (key.toLowerCase().includes(field.toLowerCase())) {
+                        name = props[key];
+                        break;
+                      }
+                    }
+                    if (name) break;
+                  }
+                  
+                  if (name) {
+                    popupItems.push(`<strong style="font-size: 1.1em; color: #2a9d8f;">${name}</strong>`);
+                  }
+                  
+                  for (const key in props) {
+                    if (key.toLowerCase() !== 'geometry') {
+                      const value = props[key];
+                      if (value !== undefined && value !== null && String(value).trim() !== '') {
+                        let skip = false;
+                        for (const field of nameFields) {
+                          if (key.toLowerCase().includes(field.toLowerCase())) {
+                            skip = true;
+                            break;
+                          }
+                        }
+                        if (!skip) {
+                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (popupItems.length > 0) {
+                    layer.bindPopup(popupItems.join('<br/>'));
+                  }
+                }
+              }
+            });
+            
+            featureLayer.addTo(map);
+            if (featureLayer.bringToFront) {
+              featureLayer.bringToFront();
+            }
+            
+            // ذخیره لایه برای حذف بعدی
+            featureLayersMap[featureId] = featureLayer;
+            
+            // تنظیم view
+            try {
+              const bounds = [];
+              if (mainLayer) {
+                bounds.push(mainLayer.getBounds());
+              }
+              if (featureLayer.getBounds) {
+                bounds.push(featureLayer.getBounds());
+              }
+              
+              if (bounds.length > 0) {
+                let combinedBounds = bounds[0];
+                for (let i = 1; i < bounds.length; i++) {
+                  combinedBounds = combinedBounds.extend(bounds[i]);
+                }
+                map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+              }
+            } catch (err) {
+              console.warn('Cannot fit bounds:', err);
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading feature:', error);
+        });
+    }
+    
+    function removeFeatureFromMap(featureId) {
+      if (featureLayersMap[featureId]) {
+        map.removeLayer(featureLayersMap[featureId]);
+        delete featureLayersMap[featureId];
+        console.log('Feature layer removed:', featureId);
+      }
+    }
+    
+    function updateSelectedList() {
+      const selectedDiv = document.getElementById('selected-features');
+      const selectedList = document.getElementById('selected-list');
+      
+      if (selectedFeatures.size > 0) {
+        selectedDiv.style.display = 'block';
+        selectedList.innerHTML = Array.from(selectedFeatures).map(id => {
+          const checkbox = document.getElementById(`feature-${id}`);
+          const name = checkbox ? checkbox.nextSibling.textContent.trim() : id;
+          return `<span style="display: inline-block; background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin: 0.25rem;">${name}</span>`;
+        }).join('');
+      } else {
+        selectedDiv.style.display = 'none';
+      }
     }
 
   </script>
@@ -1591,19 +1739,20 @@ def index():
             if geojson:
                 _attach_tootapp_links(geojson, selected_map_id)
         
-        # بارگذاری عوارض انتخاب شده از query string
-        feature_ids_param = request.args.get("feature_ids", "")
-        if feature_ids_param:
-            feature_ids = [fid.strip() for fid in feature_ids_param.split(",") if fid.strip()]
-            for feature_id in feature_ids:
+        # بارگذاری تمام عوارض مربوط به این نقشه (به صورت خودکار)
+        index = load_features_index()
+        all_features_for_map = [item for item in index if item.get("map_id") == selected_map_id]
+        
+        # بارگذاری GeoJSON تمام عوارض
+        for feature_item in all_features_for_map:
+            feature_id = feature_item.get("feature_id")
+            if feature_id:
                 feature_data = load_feature_data(feature_id)
                 if feature_data and feature_data.get("geojson"):
                     selected_features_geojson.append(feature_data.get("geojson"))
-        else:
-            feature_ids = []
-
-    # لیست feature_ids برای checkbox ها
-    selected_feature_ids = feature_ids if 'feature_ids' in locals() else []
+        
+        # لیست feature_ids برای checkbox ها (همه عوارض به صورت پیش‌فرض انتخاب شده‌اند)
+        selected_feature_ids = [item.get("feature_id") for item in all_features_for_map if item.get("feature_id")]
 
     return render_template_string(
         INDEX_TEMPLATE,
