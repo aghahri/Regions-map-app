@@ -1317,11 +1317,16 @@ INDEX_TEMPLATE = """
       }).addTo(map);
     }
     
-    // بارگذاری عوارض انتخاب شده
+    // بارگذاری عوارض انتخاب شده (از server - به صورت خودکار)
     const featureLayers = [];
-    if (selectedFeaturesGeojson && Array.isArray(selectedFeaturesGeojson)) {
-      selectedFeaturesGeojson.forEach(function(featureGeojsonStr) {
+    const selectedFeatureIdsForMap = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
+    
+    if (selectedFeaturesGeojson && Array.isArray(selectedFeaturesGeojson) && selectedFeatureIdsForMap.length > 0) {
+      selectedFeaturesGeojson.forEach(function(featureGeojsonStr, index) {
         try {
+          const featureId = selectedFeatureIdsForMap[index];
+          if (!featureId) return;
+          
           let featureGeojson = typeof featureGeojsonStr === 'string' ? JSON.parse(featureGeojsonStr) : featureGeojsonStr;
           
           if (featureGeojson && featureGeojson.type === 'FeatureCollection' && featureGeojson.features) {
@@ -1400,6 +1405,9 @@ INDEX_TEMPLATE = """
               featureLayer.bringToFront();
             }
             featureLayers.push(featureLayer);
+            
+            // ذخیره در featureLayersMap برای حذف بعدی
+            featureLayersMap[featureId] = featureLayer;
           }
         } catch (e) {
           console.error('Error loading feature:', e);
