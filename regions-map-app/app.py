@@ -1766,22 +1766,32 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       console.log('Attempting to remove feature:', featureId);
+      console.log('featureLayersMap:', featureLayersMap);
       
-      // روش 1: استفاده از featureLayersMap
+      // استفاده از featureLayersMap
       if (featureLayersMap[featureId]) {
         const layer = featureLayersMap[featureId];
+        console.log('Found layer in map:', layer);
+        console.log('Layer is on map:', map.hasLayer(layer));
+        
         if (map.hasLayer(layer)) {
           map.removeLayer(layer);
-          console.log('Feature layer removed from map (method 1):', featureId);
-          return;
+          console.log('Feature layer removed from map:', featureId);
+        } else {
+          console.log('Layer not found on map, but exists in featureLayersMap');
         }
+      } else {
+        console.log('Layer not found in featureLayersMap for featureId:', featureId);
+        
+        // جستجو در همه لایه‌های نقشه
+        map.eachLayer(function(l) {
+          if (l instanceof L.GeoJSON && l !== mainLayer && l.featureId === featureId) {
+            map.removeLayer(l);
+            console.log('Feature layer removed by searching:', featureId);
+          }
+        });
       }
-      
-      // روش 2: جستجو در همه لایه‌های نقشه
-      let removed = false;
-      map.eachLayer(function(l) {
-        if (l instanceof L.GeoJSON && l !== mainLayer) {
-          // بررسی featureId ذخیره شده در لایه
+    }
           if (l.featureId === featureId) {
             map.removeLayer(l);
             removed = true;
