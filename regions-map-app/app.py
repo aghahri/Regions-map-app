@@ -1505,17 +1505,25 @@ INDEX_TEMPLATE = """
         .then(data => {
           if (data.success && data.features.length > 0) {
             const featuresList = document.getElementById('features-list');
-            featuresList.innerHTML = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            featuresList.innerHTML = ''; // پاک کردن محتوای قبلی
             
             data.features.forEach(feature => {
               const isActive = selectedFeatures.has(feature.feature_id);
+              
+              // ایجاد container برای هر عارضه
+              const featureItem = document.createElement('div');
+              featureItem.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 6px;';
+              
+              const featureName = document.createElement('span');
+              featureName.textContent = feature.feature_name || feature.original_filename;
+              featureName.style.cssText = 'flex: 1; margin-left: 0.5rem;';
               
               // ایجاد دکمه خاموش/روشن
               const toggleBtn = document.createElement('button');
               toggleBtn.type = 'button';
               toggleBtn.id = `toggle-${feature.feature_id}`;
               toggleBtn.className = 'feature-toggle-btn';
-              toggleBtn.style.cssText = 'padding: 0.4rem 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-left: 0.5rem; min-width: 70px; transition: all 0.3s;';
+              toggleBtn.style.cssText = 'padding: 0.4rem 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; min-width: 70px; transition: all 0.3s; font-weight: bold;';
               
               // تنظیم استایل و متن بر اساس وضعیت
               if (isActive) {
@@ -1528,8 +1536,14 @@ INDEX_TEMPLATE = """
                 toggleBtn.style.color = '#fff';
               }
               
-              toggleBtn.onclick = function() {
-                const newState = !selectedFeatures.has(feature.feature_id);
+              // اضافه کردن event listener
+              toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const currentState = selectedFeatures.has(feature.feature_id);
+                const newState = !currentState;
+                
                 toggleFeature(feature.feature_id, newState);
                 
                 // به‌روزرسانی ظاهر دکمه
@@ -1540,23 +1554,13 @@ INDEX_TEMPLATE = """
                   this.textContent = 'خاموش';
                   this.style.backgroundColor = '#dc3545';
                 }
-              };
-              
-              // ایجاد container برای هر عارضه
-              const featureItem = document.createElement('div');
-              featureItem.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 6px;';
-              
-              const featureName = document.createElement('span');
-              featureName.textContent = feature.feature_name || feature.original_filename;
-              featureName.style.cssText = 'flex: 1; margin-left: 0.5rem;';
+              });
               
               featureItem.appendChild(featureName);
               featureItem.appendChild(toggleBtn);
               
               featuresList.appendChild(featureItem);
             });
-            
-            featuresList.innerHTML += '</div>';
           } else {
             document.getElementById('features-list').innerHTML = '<p style="color: #6c757d;">هیچ عارضه‌ای برای این نقشه آپلود نشده است.</p>';
           }
