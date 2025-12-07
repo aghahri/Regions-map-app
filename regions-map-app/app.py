@@ -1834,9 +1834,10 @@ INDEX_TEMPLATE = """
                     }
                   }
                   
-                  // اضافه کردن لینک توت‌اپ به صورت فارسی
-                  const tootappLink = 'https://tootapp.ir/join/';
-                  popupItems.push(`<strong>پیوست به گروه توت‌اپ:</strong> <a href="${tootappLink}" target="_blank" style="color: #007bff; text-decoration: underline;">پیوند به توت</a>`);
+                  // اضافه کردن لینک توت‌اپ به صورت فارسی (استفاده از لینک هر عارضه)
+                  const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
+                  const displayUrl = tootappUrl.startsWith('http') ? tootappUrl : `https://${tootappUrl}`;
+                  popupItems.push(`<strong>پیوست به گروه توت‌اپ:</strong> <a href="${displayUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">پیوند به توت</a>`);
                   
                   if (popupItems.length > 0) {
                     layer.bindPopup(popupItems.join('<br/>'));
@@ -2664,6 +2665,11 @@ def api_get_feature(feature_id: str):
                 return jsonify({"success": False, "error": f"خطا در parse کردن GeoJSON: {str(e)}"}), 400
         else:
             return jsonify({"success": False, "error": f"نوع داده GeoJSON نامعتبر است: {type(geojson)}"}), 400
+        
+        # attach کردن لینک‌های توت‌اپ به geojson
+        map_id = feature_data.get("map_id")
+        if map_id:
+            _attach_tootapp_links(geojson, map_id)
         
         return jsonify({
             "success": True,
