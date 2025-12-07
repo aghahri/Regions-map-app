@@ -1322,7 +1322,7 @@ INDEX_TEMPLATE = """
             layer.bindPopup(popupContent);
           }
         }
-      }).addTo(map);
+      }).addTo(window.map);
     }
     
     // بارگذاری عوارض انتخاب شده (از server - به صورت خودکار)
@@ -1839,7 +1839,7 @@ INDEX_TEMPLATE = """
       }
     }
           if (l.featureId === featureId) {
-            map.removeLayer(l);
+            window.map.removeLayer(l);
             removed = true;
             console.log('Feature layer removed from map (method 2):', featureId);
             return false; // break
