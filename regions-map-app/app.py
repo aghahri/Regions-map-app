@@ -1482,16 +1482,13 @@ INDEX_TEMPLATE = """
     const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
     const selectedFeatures = new Set();
     
-    // دریافت عوارض انتخاب شده از URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const featuresParam = urlParams.get('features');
-    if (featuresParam) {
-      featuresParam.split(',').forEach(function(fid) {
-        if (fid.trim()) {
-          selectedFeatures.add(fid.trim());
-        }
-      });
-    }
+    // دریافت عوارض انتخاب شده از URL یا از server
+    const selectedFeatureIds = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
+    selectedFeatureIds.forEach(function(fid) {
+      if (fid && fid.trim()) {
+        selectedFeatures.add(fid.trim());
+      }
+    });
 
     if (selectedMapId) {
       // بارگذاری لیست عوارض
