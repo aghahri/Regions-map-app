@@ -1400,6 +1400,9 @@ INDEX_TEMPLATE = """
               }
             });
             
+            // اضافه کردن featureId به لایه برای شناسایی بعدی
+            featureLayer.featureId = featureId;
+            
             featureLayer.addTo(map);
             if (featureLayer.bringToFront) {
               featureLayer.bringToFront();
@@ -1742,6 +1745,9 @@ INDEX_TEMPLATE = """
               }
             });
             
+            // اضافه کردن featureId به لایه برای شناسایی بعدی
+            featureLayer.featureId = featureId;
+            
             featureLayer.addTo(map);
             if (featureLayer.bringToFront) {
               featureLayer.bringToFront();
@@ -1760,40 +1766,65 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       console.log('Attempting to remove feature:', featureId);
-      console.log('featureLayersMap:', featureLayersMap);
       
+      let removed = false;
+      
+      // روش 1: استفاده از featureLayersMap
       if (featureLayersMap[featureId]) {
         const layer = featureLayersMap[featureId];
-        console.log('Layer found:', layer);
-        console.log('Layer on map?', map.hasLayer(layer));
+        console.log('Layer found in featureLayersMap:', layer);
         
-        // حذف لایه از نقشه
+        // حذف تمام لایه‌های داخلی (برای FeatureCollection)
+        if (layer.eachLayer) {
+          layer.eachLayer(function(innerLayer) {
+            if (map.hasLayer(innerLayer)) {
+              map.removeLayer(innerLayer);
+              console.log('Removed inner layer');
+            }
+          });
+        }
+        
+        // حذف لایه اصلی از نقشه
         if (map.hasLayer(layer)) {
           map.removeLayer(layer);
-          console.log('Feature layer removed from map:', featureId);
-        } else {
-          console.log('Layer not on map, trying to remove anyway');
-          // اگر لایه روی نقشه نیست، سعی کن آن را حذف کن
-          try {
-            map.removeLayer(layer);
-          } catch (e) {
-            console.error('Error removing layer:', e);
-          }
+          removed = true;
+          console.log('Feature layer removed from map (method 1):', featureId);
         }
-        // لایه را در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
-      } else {
-        console.log('Feature layer not found in featureLayersMap:', featureId);
-        // اگر لایه در featureLayersMap نیست، سعی کن همه لایه‌های GeoJSON را بررسی کن
+      }
+      
+      // روش 2: جستجو در تمام لایه‌های نقشه
+      if (!removed) {
         map.eachLayer(function(l) {
-          if (l instanceof L.GeoJSON && l !== mainLayer) {
-            // بررسی اینکه آیا این لایه مربوط به این عارضه است
-            const layerFeatureId = l.featureId || l.options?.featureId;
-            if (layerFeatureId === featureId) {
-              map.removeLayer(l);
-              console.log('Removed layer by checking all layers:', featureId);
+          // بررسی لایه‌های GeoJSON (نه tile layer و نه mainLayer)
+          if (l instanceof L.GeoJSON && l !== mainLayer && !(l instanceof L.TileLayer)) {
+            // بررسی featureId
+            if (l.featureId === featureId) {
+              // حذف تمام لایه‌های داخلی
+              if (l.eachLayer) {
+                l.eachLayer(function(innerLayer) {
+                  if (map.hasLayer(innerLayer)) {
+                    map.removeLayer(innerLayer);
+                  }
+                });
+              }
+              // حذف لایه اصلی
+              if (map.hasLayer(l)) {
+                map.removeLayer(l);
+                removed = true;
+                console.log('Feature layer removed from map (method 2):', featureId);
+              }
             }
           }
         });
+      }
+      
+      // حذف از featureLayersMap (اما لایه را نگه دار برای اضافه کردن دوباره)
+      // featureLayersMap[featureId] را نگه می‌داریم تا بتوان دوباره اضافه کرد
+      
+      if (removed) {
+        console.log('Feature successfully removed:', featureId);
+      } else {
+        console.warn('Feature layer not found or could not be removed:', featureId);
       }
     }
     
