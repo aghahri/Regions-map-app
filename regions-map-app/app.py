@@ -1577,19 +1577,64 @@ INDEX_TEMPLATE = """
       if (show) {
         selectedFeatures.add(featureId);
         // بارگذاری عارضه از API و نمایش روی نقشه
-        loadFeatureOnMap(featureId);
+        loadFeatureOnMap(featureId).then(() => {
+          // بعد از اضافه کردن عارضه، نقشه را مجدداً تنظیم کن
+          refreshMapView();
+        });
       } else {
         selectedFeatures.delete(featureId);
         // حذف عارضه از نقشه
         removeFeatureFromMap(featureId);
+        // بعد از حذف عارضه، نقشه را مجدداً تنظیم کن
+        refreshMapView();
       }
       updateSelectedList();
+    }
+    
+    function refreshMapView() {
+      // تنظیم view روی نقشه محلات و عوارض فعال
+      try {
+        const bounds = [];
+        
+        // اضافه کردن bounds نقشه محلات
+        if (mainLayer && mainLayer.getBounds) {
+          bounds.push(mainLayer.getBounds());
+        }
+        
+        // اضافه کردن bounds عوارض فعال
+        Object.keys(featureLayersMap).forEach(function(featureId) {
+          if (selectedFeatures.has(featureId) && featureLayersMap[featureId]) {
+            const layer = featureLayersMap[featureId];
+            if (map.hasLayer(layer) && layer.getBounds) {
+              try {
+                bounds.push(layer.getBounds());
+              } catch (e) {
+                console.warn('Error getting bounds for feature:', featureId, e);
+              }
+            }
+          }
+        });
+        
+        // تنظیم view
+        if (bounds.length > 0) {
+          let combinedBounds = bounds[0];
+          for (let i = 1; i < bounds.length; i++) {
+            combinedBounds = combinedBounds.extend(bounds[i]);
+          }
+          map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+        } else if (mainLayer && mainLayer.getBounds) {
+          // اگر فقط نقشه محلات است
+          map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
+        }
+      } catch (err) {
+        console.warn('Cannot refresh map view:', err);
+      }
     }
     
     function loadFeatureOnMap(featureId) {
       // اگر قبلاً بارگذاری شده و روی نقشه است، نیازی به بارگذاری مجدد نیست
       if (featureLayersMap[featureId] && map.hasLayer(featureLayersMap[featureId])) {
-        return;
+        return Promise.resolve();
       }
       
       // اگر لایه وجود دارد اما از نقشه حذف شده، دوباره اضافه کن
@@ -1598,12 +1643,12 @@ INDEX_TEMPLATE = """
         if (featureLayersMap[featureId].bringToFront) {
           featureLayersMap[featureId].bringToFront();
         }
-        return;
+        return Promise.resolve();
       }
       
       console.log('Loading feature:', featureId);
       
-      fetch(`/api/features/${featureId}`)
+      return fetch(`/api/features/${featureId}`)
         .then(response => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1734,11 +1779,12 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       if (featureLayersMap[featureId]) {
-        // فقط لایه را از نقشه حذف کن، اما در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
+        // حذف لایه از نقشه
         if (map.hasLayer(featureLayersMap[featureId])) {
           map.removeLayer(featureLayersMap[featureId]);
           console.log('Feature layer removed from map:', featureId);
         }
+        // لایه را در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
       }
     }
     
