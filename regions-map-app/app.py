@@ -1556,13 +1556,16 @@ INDEX_TEMPLATE = """
       
       // ساخت URL با عوارض انتخاب شده
       const featureIds = Array.from(selectedFeatures);
-      let url = `/map/${selectedMapId}`;
+      const currentUrl = new URL(window.location.href);
+      
       if (featureIds.length > 0) {
-        url += '?features=' + featureIds.join(',');
+        currentUrl.searchParams.set('feature_ids', featureIds.join(','));
+      } else {
+        currentUrl.searchParams.delete('feature_ids');
       }
       
       // reload صفحه
-      window.location.href = url;
+      window.location.href = currentUrl.toString();
     }
 
   </script>
@@ -1592,13 +1595,18 @@ def index():
                 _attach_tootapp_links(geojson, selected_map_id)
         
         # بارگذاری عوارض انتخاب شده از query string
-        features_param = request.args.get("features", "")
-        if features_param:
-            feature_ids = [fid.strip() for fid in features_param.split(",") if fid.strip()]
+        feature_ids_param = request.args.get("feature_ids", "")
+        if feature_ids_param:
+            feature_ids = [fid.strip() for fid in feature_ids_param.split(",") if fid.strip()]
             for feature_id in feature_ids:
                 feature_data = load_feature_data(feature_id)
                 if feature_data and feature_data.get("geojson"):
                     selected_features_geojson.append(feature_data.get("geojson"))
+        else:
+            feature_ids = []
+
+    # لیست feature_ids برای checkbox ها
+    selected_feature_ids = feature_ids if 'feature_ids' in locals() else []
 
     return render_template_string(
         INDEX_TEMPLATE,
@@ -1607,16 +1615,17 @@ def index():
         geojson=json.dumps(geojson) if geojson else None,
         summary=summary,
         selected_features_geojson=[json.dumps(fg) for fg in selected_features_geojson] if selected_features_geojson else [],
+        selected_feature_ids=selected_feature_ids,
     )
 
 
 @app.route("/map/<map_id>")
 def view_map(map_id: str):
     """مشاهده نقشه خاص"""
-    # حفظ query string (features) در redirect
-    features = request.args.get("features")
-    if features:
-        return redirect(url_for("index", map_id=map_id, features=features))
+    # حفظ query string (feature_ids) در redirect
+    feature_ids = request.args.get("feature_ids")
+    if feature_ids:
+        return redirect(url_for("index", map_id=map_id, feature_ids=feature_ids))
     return redirect(url_for("index", map_id=map_id))
 
 
