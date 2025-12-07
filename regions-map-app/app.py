@@ -1817,7 +1817,7 @@ INDEX_TEMPLATE = """
                   }
                   
                   for (const key in props) {
-                    if (key.toLowerCase() !== 'geometry') {
+                    if (key.toLowerCase() !== 'geometry' && key.toLowerCase() !== 'tootapp_url') {
                       const value = props[key];
                       if (value !== undefined && value !== null && String(value).trim() !== '') {
                         let skip = false;
@@ -1828,18 +1828,15 @@ INDEX_TEMPLATE = """
                           }
                         }
                         if (!skip) {
-                          // اگر فیلد tootapp_url است، به صورت لینک نمایش بده
-                          if (key.toLowerCase() === 'tootapp_url') {
-                            const url = String(value).trim();
-                            const displayUrl = url.startsWith('http') ? url : `https://${url}`;
-                            popupItems.push(`<strong>${key}:</strong> <a href="${displayUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${url}</a>`);
-                          } else {
-                            popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
-                          }
+                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
                         }
                       }
                     }
                   }
+                  
+                  // اضافه کردن لینک توت‌اپ به صورت فارسی
+                  const tootappLink = 'https://tootapp.ir/join/';
+                  popupItems.push(`<strong>پیوست به گروه توت‌اپ:</strong> <a href="${tootappLink}" target="_blank" style="color: #007bff; text-decoration: underline;">پیوند به توت</a>`);
                   
                   if (popupItems.length > 0) {
                     layer.bindPopup(popupItems.join('<br/>'));
