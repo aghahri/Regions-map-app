@@ -1428,6 +1428,28 @@ INDEX_TEMPLATE = """
           }
         }
       }).addTo(map);
+      
+      // تنظیم view روی نقشه محلات بعد از اضافه شدن لایه
+      // استفاده از setTimeout برای اطمینان از اینکه نقشه کاملاً render شده است
+      setTimeout(function() {
+        try {
+          if (mainLayer && mainLayer.getBounds) {
+            map.fitBounds(mainLayer.getBounds(), { 
+              padding: [50, 50], 
+              maxZoom: 16,
+              animate: true
+            });
+          }
+        } catch (err) {
+          console.warn('Cannot fit bounds', err);
+        }
+      }, 100);
+    }
+    
+    // اگر mainLayer وجود ندارد، view را تنظیم نکن
+    if (!mainLayer) {
+      // اگر نقشه خالی است، view را روی ایران نگه دار
+      map.setView([32.0, 53.0], 5);
     }
     
     // بارگذاری عوارض به صورت خودکار غیرفعال شده است
@@ -1535,15 +1557,6 @@ INDEX_TEMPLATE = """
       });
     }
     */
-    
-    // تنظیم view روی نقشه محلات (بدون عوارض)
-    try {
-      if (mainLayer && mainLayer.getBounds) {
-        map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
-      }
-    } catch (err) {
-      console.warn('Cannot fit bounds', err);
-    }
 
     function loadMap(mapId) {
       window.location.href = '/map/' + mapId;
