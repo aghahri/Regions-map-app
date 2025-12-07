@@ -1579,7 +1579,11 @@ INDEX_TEMPLATE = """
         });
     }
 
-    const featureLayersMap = {}; // نگهداری لایه‌های عوارض
+    // نگهداری لایه‌های عوارض - استفاده از window برای دسترسی global
+    if (typeof window.featureLayersMap === 'undefined') {
+      window.featureLayersMap = {};
+    }
+    const featureLayersMap = window.featureLayersMap;
     
     function toggleFeature(featureId, show) {
       if (show) {
