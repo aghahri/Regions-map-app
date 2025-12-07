@@ -1737,6 +1737,7 @@ def index():
     geojson = None
     summary = None
     selected_features_geojson = []  # لیست عوارض انتخاب شده
+    selected_feature_ids = []  # لیست feature_ids برای checkbox ها
 
     if selected_map_id:
         map_data = load_map_data(selected_map_id)
@@ -1748,19 +1749,28 @@ def index():
                 _attach_tootapp_links(geojson, selected_map_id)
         
         # بارگذاری تمام عوارض مربوط به این نقشه (به صورت خودکار)
-        index = load_features_index()
-        all_features_for_map = [item for item in index if item.get("map_id") == selected_map_id]
-        
-        # بارگذاری GeoJSON تمام عوارض
-        for feature_item in all_features_for_map:
-            feature_id = feature_item.get("feature_id")
-            if feature_id:
-                feature_data = load_feature_data(feature_id)
-                if feature_data and feature_data.get("geojson"):
-                    selected_features_geojson.append(feature_data.get("geojson"))
-        
-        # لیست feature_ids برای checkbox ها (همه عوارض به صورت پیش‌فرض انتخاب شده‌اند)
-        selected_feature_ids = [item.get("feature_id") for item in all_features_for_map if item.get("feature_id")]
+        try:
+            index = load_features_index()
+            all_features_for_map = [item for item in index if item.get("map_id") == selected_map_id]
+            
+            # بارگذاری GeoJSON تمام عوارض
+            for feature_item in all_features_for_map:
+                feature_id = feature_item.get("feature_id")
+                if feature_id:
+                    try:
+                        feature_data = load_feature_data(feature_id)
+                        if feature_data and feature_data.get("geojson"):
+                            selected_features_geojson.append(feature_data.get("geojson"))
+                            selected_feature_ids.append(feature_id)
+                    except Exception as e:
+                        # اگر خطایی در بارگذاری عارضه رخ داد، ادامه بده
+                        print(f"Error loading feature {feature_id}: {e}")
+                        continue
+        except Exception as e:
+            # اگر خطایی در بارگذاری index رخ داد، ادامه بده
+            print(f"Error loading features index: {e}")
+            selected_features_geojson = []
+            selected_feature_ids = []
 
     return render_template_string(
         INDEX_TEMPLATE,
