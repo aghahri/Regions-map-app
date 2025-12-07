@@ -2778,19 +2778,26 @@ def admin_manage_feature_links(map_id: str):
     
     history = load_history()
     map_info = next((item for item in history if item.get("map_id") == map_id), None)
-    map_name = map_info.get("map_name", map_info.get("original_filename", "نقشه")) if map_info else "نقشه"
+    if map_info:
+        map_name = map_info.get("map_name") or map_info.get("original_filename", "نقشه")
+    else:
+        map_name = "نقشه"
     
     error = request.args.get("error")
     success = request.args.get("success")
     
-    return render_template_string(
-        MANAGE_FEATURE_LINKS_TEMPLATE,
-        map_id=map_id,
-        map_name=map_name,
-        features=features,
-        error=error,
-        success=success
-    )
+    try:
+        return render_template_string(
+            MANAGE_FEATURE_LINKS_TEMPLATE,
+            map_id=map_id,
+            map_name=map_name,
+            features=features,
+            error=error,
+            success=success
+        )
+    except Exception as e:
+        import traceback
+        return f"خطا در رندر کردن صفحه: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
 if __name__ == "__main__":
