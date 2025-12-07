@@ -1775,30 +1775,57 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       console.log('Attempting to remove feature:', featureId);
-      console.log('featureLayersMap:', featureLayersMap);
+      console.log('featureLayersMap keys:', Object.keys(featureLayersMap));
       
-      // استفاده از featureLayersMap
+      let removed = false;
+      
+      // روش 1: استفاده از featureLayersMap
       if (featureLayersMap[featureId]) {
         const layer = featureLayersMap[featureId];
-        console.log('Found layer in map:', layer);
-        console.log('Layer is on map:', map.hasLayer(layer));
+        console.log('Found layer in featureLayersMap:', layer);
         
+        // حذف تمام لایه‌های داخلی
+        if (layer.eachLayer) {
+          layer.eachLayer(function(innerLayer) {
+            if (map.hasLayer(innerLayer)) {
+              map.removeLayer(innerLayer);
+            }
+          });
+        }
+        
+        // حذف لایه اصلی
         if (map.hasLayer(layer)) {
           map.removeLayer(layer);
+          removed = true;
           console.log('Feature layer removed from map:', featureId);
-        } else {
-          console.log('Layer not found on map, but exists in featureLayersMap');
         }
-      } else {
-        console.log('Layer not found in featureLayersMap for featureId:', featureId);
-        
-        // جستجو در همه لایه‌های نقشه
+      }
+      
+      // روش 2: جستجو در همه لایه‌های نقشه (fallback)
+      if (!removed) {
         map.eachLayer(function(l) {
-          if (l instanceof L.GeoJSON && l !== mainLayer && l.featureId === featureId) {
-            map.removeLayer(l);
-            console.log('Feature layer removed by searching:', featureId);
+          if (l instanceof L.GeoJSON && l !== mainLayer) {
+            // بررسی featureId ذخیره شده در لایه
+            if (l.featureId === featureId) {
+              // حذف تمام لایه‌های داخلی
+              if (l.eachLayer) {
+                l.eachLayer(function(innerLayer) {
+                  if (map.hasLayer(innerLayer)) {
+                    map.removeLayer(innerLayer);
+                  }
+                });
+              }
+              map.removeLayer(l);
+              removed = true;
+              console.log('Feature layer removed by searching:', featureId);
+              return false; // break
+            }
           }
         });
+      }
+      
+      if (!removed) {
+        console.warn('Could not remove feature layer:', featureId);
       }
     }
           if (l.featureId === featureId) {
