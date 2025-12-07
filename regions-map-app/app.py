@@ -1750,26 +1750,7 @@ INDEX_TEMPLATE = """
             // ذخیره لایه برای حذف بعدی
             featureLayersMap[featureId] = featureLayer;
             
-            // تنظیم view
-            try {
-              const bounds = [];
-              if (mainLayer) {
-                bounds.push(mainLayer.getBounds());
-              }
-              if (featureLayer.getBounds) {
-                bounds.push(featureLayer.getBounds());
-              }
-              
-              if (bounds.length > 0) {
-                let combinedBounds = bounds[0];
-                for (let i = 1; i < bounds.length; i++) {
-                  combinedBounds = combinedBounds.extend(bounds[i]);
-                }
-                map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-              }
-            } catch (err) {
-              console.warn('Cannot fit bounds:', err);
-            }
+            // view در تابع refreshMapView تنظیم می‌شود
           }
         })
         .catch(error => {
