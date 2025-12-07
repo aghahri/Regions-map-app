@@ -1759,13 +1759,41 @@ INDEX_TEMPLATE = """
     }
     
     function removeFeatureFromMap(featureId) {
+      console.log('Attempting to remove feature:', featureId);
+      console.log('featureLayersMap:', featureLayersMap);
+      
       if (featureLayersMap[featureId]) {
+        const layer = featureLayersMap[featureId];
+        console.log('Layer found:', layer);
+        console.log('Layer on map?', map.hasLayer(layer));
+        
         // حذف لایه از نقشه
-        if (map.hasLayer(featureLayersMap[featureId])) {
-          map.removeLayer(featureLayersMap[featureId]);
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
           console.log('Feature layer removed from map:', featureId);
+        } else {
+          console.log('Layer not on map, trying to remove anyway');
+          // اگر لایه روی نقشه نیست، سعی کن آن را حذف کن
+          try {
+            map.removeLayer(layer);
+          } catch (e) {
+            console.error('Error removing layer:', e);
+          }
         }
         // لایه را در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
+      } else {
+        console.log('Feature layer not found in featureLayersMap:', featureId);
+        // اگر لایه در featureLayersMap نیست، سعی کن همه لایه‌های GeoJSON را بررسی کن
+        map.eachLayer(function(l) {
+          if (l instanceof L.GeoJSON && l !== mainLayer) {
+            // بررسی اینکه آیا این لایه مربوط به این عارضه است
+            const layerFeatureId = l.featureId || l.options?.featureId;
+            if (layerFeatureId === featureId) {
+              map.removeLayer(l);
+              console.log('Removed layer by checking all layers:', featureId);
+            }
+          }
+        });
       }
     }
     
