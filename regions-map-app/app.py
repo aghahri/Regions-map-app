@@ -1250,39 +1250,17 @@ INDEX_TEMPLATE = """
     </div>
   </main>
   <script>
-    // صبر کردن تا DOM کاملاً لود شود
-    let map;
+    // ایجاد نقشه - باید بلافاصله بعد از لود شدن صفحه
+    const map = L.map('map').setView([32.0, 53.0], 5);
     
-    function initMap() {
-      // بررسی اینکه div نقشه وجود دارد
-      const mapDiv = document.getElementById('map');
-      if (!mapDiv) {
-        console.error('Map div not found!');
-        return;
-      }
-      
-      // ایجاد نقشه
-      map = L.map('map', {
-        center: [32.0, 53.0],
-        zoom: 5,
-        zoomControl: true
-      });
-      
-      // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-        minZoom: 2
-      }).addTo(map);
-      
-      // فراخوانی تابع بارگذاری لایه‌ها
-      loadMapLayers();
-    }
-    
-    function loadMapLayers() {
-      if (!map) return;
-      
-      let mainLayer = null; // لایر اصلی محلات
+    // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      minZoom: 2
+    }).addTo(map);
+
+    let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
     
