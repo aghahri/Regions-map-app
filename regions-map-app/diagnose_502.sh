@@ -140,3 +140,4 @@ else
     systemctl is-active --quiet nginx && echo "✅ Nginx: running" || echo "❌ Nginx: stopped"
 fi
 
+

@@ -82,3 +82,4 @@ find /var/www -name "app.py" -type f
 # اگر در مسیر دیگری است، WorkingDirectory را تغییر دهید
 ```
 
+

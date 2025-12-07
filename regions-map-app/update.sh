@@ -19,3 +19,4 @@ echo ""
 echo "Checking status..."
 sudo systemctl status regions-map-app --no-pager -l | head -10
 
+

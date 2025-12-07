@@ -170,3 +170,4 @@ pip install shapely
 sudo journalctl -u regions-map-app --since "10 minutes ago" | tail -100
 ```
 
+

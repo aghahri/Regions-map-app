@@ -57,3 +57,4 @@ sudo systemctl restart regions-map-app
 
 ## خروجی اسکریپت را برای من بفرستید تا مشکل را پیدا کنم!
 
+

@@ -96,3 +96,4 @@ pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 3. خطای دقیق را پیدا کنید
 4. اگر نیاز است، dependency مشکل‌ساز را حذف یا تغییر دهید
 
+

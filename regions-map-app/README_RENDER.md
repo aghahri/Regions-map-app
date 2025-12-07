@@ -58,3 +58,4 @@ python -c "import secrets; print(secrets.token_hex(32))"
 2. مطمئن شوید Root Directory درست است
 3. Build Command را کپی کنید و در terminal تست کنید
 
+

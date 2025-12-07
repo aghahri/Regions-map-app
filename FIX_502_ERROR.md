@@ -212,3 +212,4 @@ sudo tail -20 /var/log/nginx/error.log
 3. مطمئن شوید که app.py بدون خطا اجرا می‌شود
 4. Dependencies را دوباره نصب کنید
 
+

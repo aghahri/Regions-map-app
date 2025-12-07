@@ -86,3 +86,4 @@ sudo grep -r "proxy_pass" /etc/nginx/sites-enabled/
 
 اگر socket استفاده می‌کند، باید به TCP تغییر دهید یا socket را درست کنید.
 
+
