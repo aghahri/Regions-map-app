@@ -2769,11 +2769,7 @@ def admin_update_feature_link(feature_id: str):
         elif link_value.startswith("http://tootapp.ir/"):
             link_value = link_value.replace("http://tootapp.ir/", "")
         
-        # اگر خالی بود، لینک را خالی نگه دار (base URL فقط)
-        if not link_value:
-            link_value = ""
-        
-        # ذخیره لینک
+        # ذخیره لینک (حتی اگر خالی باشد)
         links[feature_id] = link_value
         save_links(map_id, links)
         
