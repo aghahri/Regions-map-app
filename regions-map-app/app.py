@@ -1321,6 +1321,11 @@ INDEX_TEMPLATE = """
     const featureLayers = [];
     const selectedFeatureIdsForMap = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
     
+    // اطمینان از اینکه featureLayersMap در scope درست است
+    if (typeof featureLayersMap === 'undefined') {
+      window.featureLayersMap = {};
+    }
+    
     if (selectedFeaturesGeojson && Array.isArray(selectedFeaturesGeojson) && selectedFeatureIdsForMap.length > 0) {
       selectedFeaturesGeojson.forEach(function(featureGeojsonStr, index) {
         try {
