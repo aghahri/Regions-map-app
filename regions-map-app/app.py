@@ -1493,13 +1493,8 @@ INDEX_TEMPLATE = """
     const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
     const selectedFeatures = new Set();
     
-    // دریافت عوارض انتخاب شده از URL یا از server
-    const selectedFeatureIds = {{ selected_feature_ids|safe if selected_feature_ids else '[]' }};
-    selectedFeatureIds.forEach(function(fid) {
-      if (fid && fid.trim()) {
-        selectedFeatures.add(fid.trim());
-      }
-    });
+    // عوارض به صورت پیش‌فرض خاموش هستند
+    // کاربر باید دکمه روبروی هر عارضه را بزند تا آن عارضه روشن شود
 
     if (selectedMapId) {
       // بارگذاری لیست عوارض
