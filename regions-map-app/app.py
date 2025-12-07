@@ -1586,12 +1586,13 @@ INDEX_TEMPLATE = """
               layer.setZIndex(1000); // z-index بالا برای عوارض
             }
             
-            // اطمینان از اینکه لایر محلات روی نقشه است
+            // اطمینان از اینکه لایر محلات روی نقشه است و قابل دیدن است
             ensureMainLayerVisible();
             
+            // اضافه کردن لایر عوارض به نقشه
             layer.addTo(map);
             
-            // آوردن لایر به جلو (بالای لایر محلات)
+            // آوردن لایر عوارض به جلو (بالای لایر محلات)
             if (layer.bringToFront) {
               layer.bringToFront();
             }
@@ -1599,6 +1600,14 @@ INDEX_TEMPLATE = """
             // اطمینان از اینکه لایر محلات زیر عوارض است
             if (mainLayer && mainLayer.bringToBack) {
               mainLayer.bringToBack();
+            }
+            
+            // اطمینان از اینکه لایر محلات قابل دیدن است (اگر قبلاً حذف شده بود)
+            if (mainLayer && !map.hasLayer(mainLayer)) {
+              mainLayer.addTo(map);
+              if (mainLayer.bringToBack) {
+                mainLayer.bringToBack();
+              }
             }
             
             // همچنین هر لایر داخلی را به جلو بیاور و z-index تنظیم کن
@@ -1665,28 +1674,31 @@ INDEX_TEMPLATE = """
               }, 5000);
             }
             
-            // تنظیم view روی عوارض
+            // تنظیم view روی هر دو لایه (محلات و عوارض)
             try {
               const bounds = layer.getBounds();
               if (bounds && bounds.isValid && bounds.isValid()) {
-                console.log('Fitting bounds to features');
-                // اگر لایر محلات وجود دارد، bounds را با آن ترکیب کن
+                console.log('Fitting bounds to features and neighborhoods');
+                // همیشه bounds را با لایر محلات ترکیب کن تا هر دو قابل دیدن باشند
                 if (mainLayer && mainLayer.getBounds) {
                   try {
                     const mainBounds = mainLayer.getBounds();
                     if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
+                      // ترکیب bounds محلات و عوارض
                       const combinedBounds = bounds.extend(mainBounds);
                       map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
-                      console.log('Fitted to combined bounds');
+                      console.log('Fitted to combined bounds (neighborhoods + features)');
                     } else {
+                      // اگر bounds محلات معتبر نیست، فقط عوارض را نمایش بده
                       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-                      console.log('Fitted to feature bounds only');
+                      console.log('Fitted to feature bounds only (main layer bounds invalid)');
                     }
                   } catch (e) {
                     console.warn('Error extending bounds:', e);
                     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
                   }
                 } else {
+                  // اگر لایر محلات وجود ندارد، فقط عوارض را نمایش بده
                   map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
                   console.log('Fitted to feature bounds (no main layer)');
                 }
@@ -1698,7 +1710,23 @@ INDEX_TEMPLATE = """
                   if (l.getLatLng) {
                     const latlng = l.getLatLng();
                     if (latlng && latlng.lat && latlng.lng) {
-                      map.setView([latlng.lat, latlng.lng], 15);
+                      // اگر لایر محلات وجود دارد، view را طوری تنظیم کن که هر دو قابل دیدن باشند
+                      if (mainLayer && mainLayer.getBounds) {
+                        try {
+                          const mainBounds = mainLayer.getBounds();
+                          if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
+                            const pointBounds = L.latLngBounds([latlng]);
+                            const combinedBounds = pointBounds.extend(mainBounds);
+                            map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+                          } else {
+                            map.setView([latlng.lat, latlng.lng], 15);
+                          }
+                        } catch (e) {
+                          map.setView([latlng.lat, latlng.lng], 15);
+                        }
+                      } else {
+                        map.setView([latlng.lat, latlng.lng], 15);
+                      }
                       hasValidCoords = true;
                       return false; // break
                     }
@@ -1706,7 +1734,22 @@ INDEX_TEMPLATE = """
                     try {
                       const lBounds = l.getBounds();
                       if (lBounds && lBounds.isValid && lBounds.isValid()) {
-                        map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
+                        // اگر لایر محلات وجود دارد، bounds را ترکیب کن
+                        if (mainLayer && mainLayer.getBounds) {
+                          try {
+                            const mainBounds = mainLayer.getBounds();
+                            if (mainBounds && mainBounds.isValid && mainBounds.isValid()) {
+                              const combinedBounds = lBounds.extend(mainBounds);
+                              map.fitBounds(combinedBounds, { padding: [50, 50], maxZoom: 16 });
+                            } else {
+                              map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
+                            }
+                          } catch (e) {
+                            map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
+                          }
+                        } else {
+                          map.fitBounds(lBounds, { padding: [50, 50], maxZoom: 16 });
+                        }
                         hasValidCoords = true;
                         return false; // break
                       }
@@ -1741,13 +1784,21 @@ INDEX_TEMPLATE = """
       }
     }
     
-    // تابع برای اطمینان از اینکه لایر محلات حفظ می‌شود
+    // تابع برای اطمینان از اینکه لایر محلات حفظ می‌شود و قابل دیدن است
     function ensureMainLayerVisible() {
-      if (mainLayer && !map.hasLayer(mainLayer)) {
-        console.log('Re-adding main layer to map');
-        mainLayer.addTo(map);
+      if (mainLayer) {
+        // اگر لایر محلات روی نقشه نیست، آن را اضافه کن
+        if (!map.hasLayer(mainLayer)) {
+          console.log('Re-adding main layer (neighborhoods) to map');
+          mainLayer.addTo(map);
+        }
+        // تنظیم z-index پایین برای لایر محلات (زیر عوارض)
         if (mainLayer.setZIndex) {
           mainLayer.setZIndex(100);
+        }
+        // اطمینان از اینکه لایر محلات در پشت است
+        if (mainLayer.bringToBack) {
+          mainLayer.bringToBack();
         }
       }
     }
