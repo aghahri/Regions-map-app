@@ -433,7 +433,7 @@ def save_history(history: List[Dict]) -> None:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 
-def save_map_data(map_id: str, geojson: Dict, summary: Dict, original_filename: str, points_geojson: Optional[Dict] = None, points_summary: Optional[Dict] = None, points_filename: Optional[str] = None) -> None:
+def save_map_data(map_id: str, geojson: Dict, summary: Dict, original_filename: str) -> None:
     """ذخیره داده‌های نقشه در فایل JSON"""
     map_file = STORAGE_DIR / f"{map_id}.json"
     
@@ -447,11 +447,6 @@ def save_map_data(map_id: str, geojson: Dict, summary: Dict, original_filename: 
         "map_id": map_id,
         "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
-    # اگر لایه نقاط هم وجود دارد، اضافه کن
-    if points_geojson:
-        data["points_geojson"] = _clean_geojson_for_json(points_geojson)
-        data["points_summary"] = points_summary
-        data["points_filename"] = points_filename
     with open(map_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
@@ -828,11 +823,8 @@ ADMIN_TEMPLATE = """
       <form method="post" enctype="multipart/form-data">
         <label>نام نقشه (اختیاری):</label>
         <input type="text" name="map_name" placeholder="مثلاً: محلات تهران" />
-        <label>فایل محلات (چندضلعی‌ها) - Zip حاوی Shapefile یا GeoJSON:</label>
+        <label>انتخاب فایل (Zip حاوی Shapefile یا GeoJSON):</label>
         <input type="file" name="shapefile" accept=".zip,.geojson,.json" required />
-        <label>فایل عوارض (نقاط - مثلاً فروشگاه‌ها) - Zip حاوی Shapefile یا GeoJSON (اختیاری):</label>
-        <input type="file" name="points_file" accept=".zip,.geojson,.json" />
-        <small style="color: #6c757d; display: block; margin-bottom: 1rem;">می‌توانید یک فایل shapefile حاوی نقاط (مثلاً فروشگاه‌ها) را روی نقشه محلات بارگذاری کنید.</small>
         <button type="submit">آپلود و ذخیره</button>
         {% if error %}
           <div class="error">{{ error }}</div>
@@ -1226,28 +1218,13 @@ INDEX_TEMPLATE = """
       {% if summary %}
       <button onclick="toggleSummary()" class="summary-toggle-btn">اطلاعات محله</button>
       <div class="summary" id="summary-details" style="display: none;">
-        <strong>ویژگی‌های لایه محلات:</strong>
+        <strong>اطلاعات محله:</strong>
         <p>تعداد عوارض: {{ summary.feature_count }}</p>
         <p>سیستم مختصات: {{ summary.crs }}</p>
         {% if summary.columns %}
         <p>ستون‌های توصیفی:</p>
         <ul>
           {% for col in summary.columns %}
-          <li>{{ col }}</li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-      {% endif %}
-      {% if points_summary %}
-      <div class="summary" style="margin-top: 1rem;">
-        <strong>ویژگی‌های لایه نقاط:</strong>
-        <p>تعداد عوارض: {{ points_summary.feature_count }}</p>
-        <p>سیستم مختصات: {{ points_summary.crs }}</p>
-        {% if points_summary.columns %}
-        <p>ستون‌های توصیفی:</p>
-        <ul>
-          {% for col in points_summary.columns %}
           <li>{{ col }}</li>
           {% endfor %}
         </ul>
@@ -1279,19 +1256,14 @@ INDEX_TEMPLATE = """
     }).addTo(map);
 
     let mainLayer = null; // لایر اصلی محلات
-    let pointsLayer = null; // لایر نقاط
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
-    const pointsGeojsonData = {{ points_geojson|safe if points_geojson else 'null' }};
-    
-    // حذف لایه‌های قبلی (فقط لایه محلات، نه عوارض)
-    map.eachLayer(function(layer) {
-      if (layer instanceof L.GeoJSON && layer === mainLayer) {
-        map.removeLayer(layer);
-      }
-    });
-    
-    // بارگذاری لایه محلات (چندضلعی‌ها)
     if (geojsonData) {
+      // فقط لایر محلات قدیمی را حذف کن، نه لایرهای عوارض
+      map.eachLayer(function(layer) {
+        if (layer instanceof L.GeoJSON && layer === mainLayer) {
+          map.removeLayer(layer);
+        }
+      });
       mainLayer = L.geoJSON(geojsonData, {
         style: function() { return { color: '#111', weight: 2, fillOpacity: 0.1, zIndex: 100 }; },
         onEachFeature: function(feature, layer) {
@@ -1339,74 +1311,11 @@ INDEX_TEMPLATE = """
           }
         }
       }).addTo(map);
-    }
-    
-    // بارگذاری لایه نقاط (مثلاً فروشگاه‌ها)
-    if (pointsGeojsonData) {
-      pointsLayer = L.geoJSON(pointsGeojsonData, {
-        pointToLayer: function(feature, latlng) {
-          return L.circleMarker(latlng, {
-            radius: 8,
-            fillColor: '#ff0000',
-            color: '#cc0000',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.8,
-            zIndex: 1000
-          });
-        },
-        style: function(feature) {
-          // برای خطوط و چندضلعی‌ها در فایل نقاط
-          return {
-            color: '#ff0000',
-            weight: 3,
-            opacity: 0.8,
-            fillOpacity: 0.3,
-            fillColor: '#ff0000',
-            zIndex: 1000
-          };
-        },
-        onEachFeature: function(feature, layer) {
-          if (feature.properties) {
-            const pairs = Object.entries(feature.properties)
-              .filter(([key]) => key !== 'tootapp_url');
-            const details = pairs
-              .map(([key, value]) => `<strong>${key}</strong>: ${value ?? '-'}`)
-              .join('<br/>');
-            
-            const popupContent = details || 'بدون اطلاعات توصیفی';
-            layer.bindPopup(popupContent);
-          }
-        }
-      }).addTo(map);
-      
-      // اطمینان از اینکه نقاط بالای چندضلعی‌ها نمایش داده می‌شوند
-      if (pointsLayer.bringToFront) {
-        pointsLayer.bringToFront();
-      }
-    }
-    
-    // تنظیم view روی هر دو لایه
-    try {
-      const bounds = [];
-      if (mainLayer) {
-        bounds.push(mainLayer.getBounds());
-      }
-      if (pointsLayer) {
-        bounds.push(pointsLayer.getBounds());
-      }
-      
-      if (bounds.length > 0) {
-        let combinedBounds = bounds[0];
-        for (let i = 1; i < bounds.length; i++) {
-          combinedBounds = combinedBounds.extend(bounds[i]);
-        }
-        map.fitBounds(combinedBounds, { padding: [20, 20] });
-      } else if (mainLayer) {
+      try {
         map.fitBounds(mainLayer.getBounds(), { padding: [20, 20] });
+      } catch (err) {
+        console.warn('Cannot fit bounds', err);
       }
-    } catch (err) {
-      console.warn('Cannot fit bounds', err);
     }
 
     function loadMap(mapId) {
@@ -1874,16 +1783,11 @@ def index():
     geojson = None
     summary = None
 
-    points_geojson = None
-    points_summary = None
-
     if selected_map_id:
         map_data = load_map_data(selected_map_id)
         if map_data:
             geojson = map_data.get("geojson")
             summary = map_data.get("summary")
-            points_geojson = map_data.get("points_geojson")
-            points_summary = map_data.get("points_summary")
             # اتصال لینک‌های توت‌اپ (با استفاده از لینک‌های ذخیره شده)
             if geojson:
                 _attach_tootapp_links(geojson, selected_map_id)
@@ -1894,8 +1798,6 @@ def index():
         selected_map_id=selected_map_id,
         geojson=json.dumps(geojson) if geojson else None,
         summary=summary,
-        points_geojson=json.dumps(points_geojson) if points_geojson else None,
-        points_summary=points_summary,
     )
 
 
@@ -1968,40 +1870,14 @@ def admin_panel():
             error = "شما دسترسی آپلود نقشه ندارید."
         else:
             file_obj = request.files.get("shapefile")
-            points_file_obj = request.files.get("points_file")
             map_name = request.form.get("map_name", "").strip()
 
             if not file_obj or not file_obj.filename:
-                error = "لطفاً فایل محلات را انتخاب کنید."
+                error = "لطفاً یک فایل انتخاب کنید."
             else:
                 try:
                     geojson, summary = load_geojson(file_obj)
                     map_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                    
-                    # اگر فایل نقاط هم آپلود شده، آن را هم بارگذاری کن (بدون اتصال لینک‌های توت‌اپ)
-                    points_geojson = None
-                    points_summary = None
-                    points_filename = None
-                    if points_file_obj and points_file_obj.filename:
-                        try:
-                            points_geojson, points_summary = load_geojson(points_file_obj, attach_links=False)
-                            points_filename = points_file_obj.filename
-                        except ValueError as exc:
-                            error = f"خطا در بارگذاری فایل نقاط: {str(exc)}"
-                            history = load_history()
-                            current_username = session.get("username", "نامشخص")
-                            current_role = session.get("role", "viewer")
-                            current_role_name = ROLES.get(current_role, "نامشخص")
-                            has_manage_users = has_permission("manage_users")
-                            return render_template_string(
-                                ADMIN_TEMPLATE, 
-                                error=error, 
-                                success=success, 
-                                history=history,
-                                current_username=current_username,
-                                current_role_name=current_role_name,
-                                has_manage_users=has_manage_users
-                            )
                     
                     # بررسی وجود نقشه قبلی با همان نام
                     final_map_name = map_name or file_obj.filename
@@ -2016,14 +1892,7 @@ def admin_panel():
                     else:
                         success = f"نقشه با موفقیت آپلود شد! شناسه: {map_id}"
                     
-                    if points_geojson:
-                        success += f" (محلات: {summary.get('feature_count', 0)}، نقاط: {points_summary.get('feature_count', 0) if points_summary else 0})"
-                    
-                    save_map_data(map_id, geojson, summary, file_obj.filename, points_geojson, points_summary, points_filename)
-
-                    total_features = summary.get("feature_count", 0)
-                    if points_summary:
-                        total_features += points_summary.get("feature_count", 0)
+                    save_map_data(map_id, geojson, summary, file_obj.filename)
 
                     history = load_history()
                     history.insert(0, {
@@ -2031,7 +1900,7 @@ def admin_panel():
                         "map_name": final_map_name,
                         "original_filename": file_obj.filename,
                         "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "feature_count": total_features,
+                        "feature_count": summary.get("feature_count", 0),
                     })
                     save_history(history)
 
