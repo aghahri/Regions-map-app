@@ -408,12 +408,8 @@ def _attach_tootapp_links(geojson: Dict, map_id: Optional[str] = None) -> None:
             else:
                 props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
         else:
-            # اگر لینک ذخیره شده نبود، از منطق قبلی استفاده می‌کنیم
-            slug = _resolve_group_slug(props)
-            if slug:
-                props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/{slug.lstrip('/')}"
-            else:
-                props["tootapp_url"] = TOOTAPP_BASE_URL.rstrip('/')
+            # اگر لینک ذخیره شده نبود، از پیش‌فرض استفاده می‌کنیم
+            props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
 
 
 def load_history() -> List[Dict]:
@@ -865,7 +861,10 @@ ADMIN_TEMPLATE = """
           </div>
           <div class="history-item-actions">
             <a href="/admin/links/{{ item.map_id }}" style="text-decoration: none;">
-              <button type="button" style="background: #2a9d8f; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">مدیریت لینک‌ها</button>
+              <button type="button" style="background: #2a9d8f; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">مدیریت لینک‌های محلات</button>
+            </a>
+            <a href="/admin/features/links/{{ item.map_id }}" style="text-decoration: none;">
+              <button type="button" style="background: #ffc107; color: #000; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">مدیریت لینک‌های عوارض</button>
             </a>
             <form method="post" action="/admin/delete/{{ item.map_id }}" style="display: inline;" onsubmit="return confirm('آیا مطمئن هستید که می‌خواهید این نقشه را حذف کنید؟');">
               <button type="submit" class="delete">حذف</button>
@@ -1715,7 +1714,14 @@ INDEX_TEMPLATE = """
                           }
                         }
                         if (!skip) {
-                          popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                          // اگر فیلد tootapp_url است، به صورت لینک نمایش بده
+                          if (key.toLowerCase() === 'tootapp_url') {
+                            const url = String(value).trim();
+                            const displayUrl = url.startsWith('http') ? url : `https://${url}`;
+                            popupItems.push(`<strong>${key}:</strong> <a href="${displayUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${url}</a>`);
+                          } else {
+                            popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
+                          }
                         }
                       }
                     }
@@ -2403,10 +2409,8 @@ def api_get_neighborhood():
                         else:
                             tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
                     else:
-                        # استفاده از slug از properties
-                        slug = _resolve_group_slug(props)
-                        if slug:
-                            tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/{slug.lstrip('/')}"
+                        # استفاده از پیش‌فرض
+                        tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
                     
                     return jsonify({
                         "success": True,
@@ -2585,6 +2589,94 @@ def admin_delete_feature(feature_id: str):
         
     except Exception as e:
         return jsonify({"success": False, "error": f"خطا در حذف: {str(e)}"}), 500
+
+
+@app.route("/admin/features/update-link/<feature_id>", methods=["POST"])
+def admin_update_feature_link(feature_id: str):
+    """آپدیت لینک توت‌اپ یک عارضه"""
+    if not session.get("username"):
+        return jsonify({"success": False, "error": "لطفاً وارد شوید"}), 403
+    
+    if not has_permission("upload"):
+        return jsonify({"success": False, "error": "شما دسترسی آپدیت ندارید"}), 403
+    
+    try:
+        link_value = request.form.get("link", "").strip()
+        map_id = request.form.get("map_id", "").strip()
+        
+        if not map_id:
+            return jsonify({"success": False, "error": "شناسه نقشه الزامی است"}), 400
+        
+        # بارگذاری لینک‌های موجود
+        links = load_links(map_id)
+        
+        # پاک کردن پیشوندهای مختلف
+        if link_value.startswith("tootapp.ir/join/"):
+            link_value = link_value.replace("tootapp.ir/join/", "")
+        elif link_value.startswith("tootapp.ir/"):
+            link_value = link_value.replace("tootapp.ir/", "")
+        if link_value.startswith("https://tootapp.ir/join/"):
+            link_value = link_value.replace("https://tootapp.ir/join/", "")
+        elif link_value.startswith("https://tootapp.ir/"):
+            link_value = link_value.replace("https://tootapp.ir/", "")
+        if link_value.startswith("http://tootapp.ir/join/"):
+            link_value = link_value.replace("http://tootapp.ir/join/", "")
+        elif link_value.startswith("http://tootapp.ir/"):
+            link_value = link_value.replace("http://tootapp.ir/", "")
+        
+        # اگر خالی بود، از پیش‌فرض استفاده کن
+        if not link_value:
+            link_value = "nvsji"
+        
+        # ذخیره لینک
+        links[feature_id] = link_value
+        save_links(map_id, links)
+        
+        return jsonify({"success": True, "message": "لینک با موفقیت آپدیت شد"}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"خطا در آپدیت: {str(e)}"}), 500
+
+
+@app.route("/admin/features/links/<map_id>", methods=["GET"])
+def admin_manage_feature_links(map_id: str):
+    """مدیریت لینک‌های توت‌اپ برای عوارض یک نقشه"""
+    if not session.get("username"):
+        return redirect(url_for("admin_login"))
+    
+    if not has_permission("manage_links"):
+        return redirect(url_for("admin_panel") + "?error=شما دسترسی مدیریت لینک‌ها ندارید")
+    
+    # بارگذاری لیست عوارض
+    index = load_features_index()
+    features = [item for item in index if item.get("map_id") == map_id]
+    
+    # بارگذاری لینک‌های ذخیره شده
+    saved_links = load_links(map_id)
+    
+    # اضافه کردن لینک به هر عارضه
+    for feature in features:
+        feature_id = feature.get("feature_id")
+        if feature_id:
+            feature["link"] = saved_links.get(feature_id, "nvsji")
+        else:
+            feature["link"] = "nvsji"
+    
+    history = load_history()
+    map_info = next((item for item in history if item.get("map_id") == map_id), None)
+    map_name = map_info.get("map_name", map_info.get("original_filename", "نقشه")) if map_info else "نقشه"
+    
+    error = request.args.get("error")
+    success = request.args.get("success")
+    
+    return render_template_string(
+        MANAGE_FEATURE_LINKS_TEMPLATE,
+        map_id=map_id,
+        map_name=map_name,
+        features=features,
+        error=error,
+        success=success
+    )
 
 
 if __name__ == "__main__":
