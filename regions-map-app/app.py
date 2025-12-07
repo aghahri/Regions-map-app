@@ -1408,6 +1408,9 @@ INDEX_TEMPLATE = """
             
             // ذخیره در featureLayersMap برای حذف بعدی
             featureLayersMap[featureId] = featureLayer;
+            
+            // اضافه کردن featureId به لایه برای شناسایی بعدی
+            featureLayer.featureId = featureId;
           }
         } catch (e) {
           console.error('Error loading feature:', e);
@@ -1750,6 +1753,9 @@ INDEX_TEMPLATE = """
             // ذخیره لایه برای حذف بعدی
             featureLayersMap[featureId] = featureLayer;
             
+            // اضافه کردن featureId به لایه برای شناسایی بعدی
+            featureLayer.featureId = featureId;
+            
             // view در تابع refreshMapView تنظیم می‌شود
           }
         })
@@ -1760,40 +1766,33 @@ INDEX_TEMPLATE = """
     
     function removeFeatureFromMap(featureId) {
       console.log('Attempting to remove feature:', featureId);
-      console.log('featureLayersMap:', featureLayersMap);
       
+      // روش 1: استفاده از featureLayersMap
       if (featureLayersMap[featureId]) {
         const layer = featureLayersMap[featureId];
-        console.log('Layer found:', layer);
-        console.log('Layer on map?', map.hasLayer(layer));
-        
-        // حذف لایه از نقشه
         if (map.hasLayer(layer)) {
           map.removeLayer(layer);
-          console.log('Feature layer removed from map:', featureId);
-        } else {
-          console.log('Layer not on map, trying to remove anyway');
-          // اگر لایه روی نقشه نیست، سعی کن آن را حذف کن
-          try {
-            map.removeLayer(layer);
-          } catch (e) {
-            console.error('Error removing layer:', e);
+          console.log('Feature layer removed from map (method 1):', featureId);
+          return;
+        }
+      }
+      
+      // روش 2: جستجو در همه لایه‌های نقشه
+      let removed = false;
+      map.eachLayer(function(l) {
+        if (l instanceof L.GeoJSON && l !== mainLayer) {
+          // بررسی featureId ذخیره شده در لایه
+          if (l.featureId === featureId) {
+            map.removeLayer(l);
+            removed = true;
+            console.log('Feature layer removed from map (method 2):', featureId);
+            return false; // break
           }
         }
-        // لایه را در featureLayersMap نگه دار تا بتوان دوباره اضافه کرد
-      } else {
-        console.log('Feature layer not found in featureLayersMap:', featureId);
-        // اگر لایه در featureLayersMap نیست، سعی کن همه لایه‌های GeoJSON را بررسی کن
-        map.eachLayer(function(l) {
-          if (l instanceof L.GeoJSON && l !== mainLayer) {
-            // بررسی اینکه آیا این لایه مربوط به این عارضه است
-            const layerFeatureId = l.featureId || l.options?.featureId;
-            if (layerFeatureId === featureId) {
-              map.removeLayer(l);
-              console.log('Removed layer by checking all layers:', featureId);
-            }
-          }
-        });
+      });
+      
+      if (!removed) {
+        console.warn('Could not remove feature layer:', featureId);
       }
     }
     
