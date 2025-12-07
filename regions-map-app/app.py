@@ -408,8 +408,8 @@ def _attach_tootapp_links(geojson: Dict, map_id: Optional[str] = None) -> None:
             else:
                 props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
         else:
-            # اگر لینک ذخیره شده نبود، از پیش‌فرض استفاده می‌کنیم
-            props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
+            # اگر لینک ذخیره شده نبود، فقط base URL را استفاده می‌کنیم
+            props["tootapp_url"] = TOOTAPP_BASE_URL.rstrip('/')
 
 
 def load_history() -> List[Dict]:
@@ -1075,7 +1075,7 @@ MANAGE_FEATURE_LINKS_TEMPLATE = """
         <div class="success">{{ success }}</div>
       {% endif %}
       <h3>لینک‌های عوارض ({{ features|length }} عارضه)</h3>
-      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/join/</code> شروع شوند. فقط قسمت بعد از join/ را وارد کنید. پیش‌فرض: nvsji</p>
+      <p style="color: #6c757d; margin-bottom: 1rem;">لینک‌ها باید با <code>tootapp.ir/join/</code> شروع شوند. فقط قسمت بعد از join/ را وارد کنید.</p>
       {% for feature in features %}
       <div class="feature-item">
         <div class="feature-name">{{ feature.feature_name or feature.original_filename }}</div>
@@ -1083,7 +1083,7 @@ MANAGE_FEATURE_LINKS_TEMPLATE = """
           <input type="hidden" name="map_id" value="{{ map_id }}" />
           <div class="link-input-group">
             <span class="link-prefix">tootapp.ir/join/</span>
-            <input type="text" name="link" value="{{ feature.link }}" placeholder="nvsji" required />
+            <input type="text" name="link" value="{{ feature.link }}" placeholder="مثلاً: Tehran3Da" />
             <button type="submit" class="save">ذخیره</button>
           </div>
           <div class="save-status" id="status_{{ feature.feature_id }}"></div>
@@ -2534,8 +2534,8 @@ def api_get_neighborhood():
                         else:
                             tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
                     else:
-                        # استفاده از پیش‌فرض
-                        tootapp_url = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
+                        # استفاده از base URL فقط
+                        tootapp_url = TOOTAPP_BASE_URL.rstrip('/')
                     
                     return jsonify({
                         "success": True,
@@ -2694,10 +2694,10 @@ def api_get_feature(feature_id: str):
                     else:
                         props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/{saved_link.lstrip('/')}"
             else:
-                # اگر لینک ذخیره شده نبود، از پیش‌فرض استفاده می‌کنیم
+                # اگر لینک ذخیره شده نبود، فقط base URL را استفاده می‌کنیم
                 for feature in geojson.get("features", []):
                     props = feature.setdefault("properties", {})
-                    props["tootapp_url"] = f"{TOOTAPP_BASE_URL.rstrip('/')}/nvsji"
+                    props["tootapp_url"] = TOOTAPP_BASE_URL.rstrip('/')
         
         return jsonify({
             "success": True,
@@ -2769,9 +2769,9 @@ def admin_update_feature_link(feature_id: str):
         elif link_value.startswith("http://tootapp.ir/"):
             link_value = link_value.replace("http://tootapp.ir/", "")
         
-        # اگر خالی بود، از پیش‌فرض استفاده کن
+        # اگر خالی بود، لینک را خالی نگه دار (base URL فقط)
         if not link_value:
-            link_value = "nvsji"
+            link_value = ""
         
         # ذخیره لینک
         links[feature_id] = link_value
@@ -2809,9 +2809,9 @@ def admin_manage_feature_links(map_id: str):
     for feature in features:
         feature_id = feature.get("feature_id")
         if feature_id:
-            feature["link"] = saved_links.get(feature_id, "nvsji")
+            feature["link"] = saved_links.get(feature_id, "")
         else:
-            feature["link"] = "nvsji"
+            feature["link"] = ""
         
         # اطمینان از وجود فیلدهای مورد نیاز
         if "feature_name" not in feature:
