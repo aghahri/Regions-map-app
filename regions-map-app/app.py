@@ -1250,14 +1250,19 @@ INDEX_TEMPLATE = """
     </div>
   </main>
   <script>
-    const map = L.map('map').setView([32.0, 53.0], 5);
-    
-    // اضافه کردن tile layer (نقشه جهان)
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
+    // ایجاد نقشه
+    const map = L.map('map', {
+      center: [32.0, 53.0],
+      zoom: 5,
+      zoomControl: true
     });
-    tileLayer.addTo(map);
+    
+    // اضافه کردن tile layer (نقشه جهان) - باید اول اضافه شود
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      minZoom: 2
+    }).addTo(map);
 
     let mainLayer = null; // لایر اصلی محلات
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
@@ -1265,7 +1270,7 @@ INDEX_TEMPLATE = """
     
     // حذف فقط لایه‌های GeoJSON قبلی (نه tile layer)
     map.eachLayer(function(layer) {
-      if (layer instanceof L.GeoJSON && layer !== tileLayer) {
+      if (layer instanceof L.GeoJSON) {
         map.removeLayer(layer);
       }
     });
