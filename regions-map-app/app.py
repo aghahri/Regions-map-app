@@ -1519,6 +1519,90 @@ INDEX_TEMPLATE = """
       z-index: 999; 
     }
     .sidebar-overlay.show { display: block; }
+    
+    /* Responsive design for mobile */
+    @media (max-width: 768px) {
+      .sidebar { 
+        width: 85vw; 
+        max-width: 320px;
+        padding: 1rem;
+      }
+      .sidebar-header h2 { 
+        font-size: 1.2rem; 
+      }
+      .sidebar-header .location-info { 
+        font-size: 0.8rem; 
+      }
+      .sidebar-logo-icon { 
+        font-size: 2rem; 
+      }
+      .sidebar-content { 
+        font-size: 0.9rem; 
+      }
+      .info-item { 
+        padding: 0.5rem 0; 
+      }
+      .info-label { 
+        font-size: 0.85rem; 
+      }
+      .info-value { 
+        font-size: 0.85rem; 
+      }
+      .tootapp-link { 
+        padding: 0.75rem; 
+        font-size: 0.95rem; 
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .sidebar { 
+        width: 90vw; 
+        max-width: 300px;
+        padding: 0.75rem;
+      }
+      .sidebar-header h2 { 
+        font-size: 1.1rem; 
+        margin-bottom: 0.25rem;
+      }
+      .sidebar-header .location-info { 
+        font-size: 0.75rem; 
+      }
+      .sidebar-close { 
+        width: 30px; 
+        height: 30px; 
+        font-size: 1rem; 
+        top: 0.5rem; 
+        left: 0.5rem; 
+      }
+      .sidebar-logo { 
+        margin: 1rem 0; 
+        padding: 0.75rem; 
+      }
+      .sidebar-logo-icon { 
+        font-size: 1.5rem; 
+      }
+      .sidebar-content { 
+        margin-top: 0.75rem; 
+      }
+      .info-item { 
+        padding: 0.4rem 0; 
+      }
+      .info-label { 
+        font-size: 0.8rem; 
+        margin-bottom: 0.2rem; 
+      }
+      .info-value { 
+        font-size: 0.8rem; 
+      }
+      .tootapp-link { 
+        margin-top: 1.5rem; 
+        padding: 0.75rem; 
+      }
+      .tootapp-link a { 
+        font-size: 1rem; 
+      }
+    }
+    
     .history-list { list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto; overflow-x: hidden; }
     .history-list::-webkit-scrollbar { width: 8px; }
     .history-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
