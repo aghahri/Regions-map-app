@@ -2673,22 +2673,30 @@ def admin_manage_links(map_id: str):
     # آماده‌سازی لیست محلات برای نمایش
     neighborhoods = []
     saved_links = load_links(map_id)
+    saved_logos = get_all_neighborhood_logos(map_id)  # فقط یک بار فراخوانی می‌شود
     
     if geojson and geojson.get("features"):
         for feature in geojson.get("features", []):
             props = feature.get("properties", {})
             feature_id = get_feature_identifier(feature)
             
-            # پیدا کردن نام محله
+            # پیدا کردن نام محله - استفاده از همان منطق JavaScript
             name = None
-            keywords = ['name', 'mahalle', 'district', 'region']
-            for key in props:
-                key_lower = key.lower()
-                if any(kw in key_lower for kw in keywords):
-                    value = props[key]
-                    if value and str(value).strip():
-                        name = str(value).strip()
-                        break
+            # اولویت اول: NAME_NEW
+            if 'NAME_NEW' in props and props['NAME_NEW']:
+                name = str(props['NAME_NEW']).strip()
+            elif 'name_new' in props and props['name_new']:
+                name = str(props['name_new']).strip()
+            else:
+                # جستجوی سایر فیلدها
+                keywords = ['name', 'mahalle', 'district', 'region']
+                for key in props:
+                    key_lower = key.lower()
+                    if any(kw in key_lower for kw in keywords):
+                        value = props[key]
+                        if value and str(value).strip():
+                            name = str(value).strip()
+                            break
             
             if not name:
                 name = "نامشخص"
@@ -2704,9 +2712,18 @@ def admin_manage_links(map_id: str):
             # لینک ذخیره شده
             link = saved_links.get(feature_id, "") if feature_id else ""
             
-            # لوگوی ذخیره شده
-            saved_logos = get_all_neighborhood_logos(map_id)
-            logo_filename = saved_logos.get(name, "")
+            # لوگوی ذخیره شده - جستجوی دقیق و case-insensitive
+            logo_filename = ""
+            name_normalized = name.strip()
+            # جستجوی exact match
+            if name_normalized in saved_logos:
+                logo_filename = saved_logos[name_normalized]
+            else:
+                # جستجوی case-insensitive
+                for saved_name, saved_logo in saved_logos.items():
+                    if saved_name.strip().lower() == name_normalized.lower():
+                        logo_filename = saved_logo
+                        break
             
             neighborhoods.append({
                 "id": feature_id or f"feature_{len(neighborhoods)}",
