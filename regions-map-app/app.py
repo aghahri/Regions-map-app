@@ -1979,7 +1979,7 @@ INDEX_TEMPLATE = """
         for (const key in props) {
           const keyLower = key.toLowerCase();
           // بررسی اینکه کلمه کلیدی در نام فیلد باشد
-          if (keyLower.includes(keywordLower) || keywordLower.includes(keyLower)) {
+          if (keyLower.includes(keywordLower)) {
             const value = props[key];
             if (value !== undefined && value !== null && String(value).trim() !== '') {
               // بررسی که مقدار عددی یا رشته معتبر باشد
