@@ -1665,11 +1665,11 @@ INDEX_TEMPLATE = """
     }
     
     function openSidebar(props) {
-      // استخراج اطلاعات از properties
-      const neighborhoodName = getFieldValue(props, ['name', 'mahalle', 'neighborhood', 'neighbourhood', 'Name', 'MAHALLE']);
-      const district = getFieldValue(props, ['district', 'mantaghe', 'region', 'District', 'REGION']);
-      const city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY']);
-      const englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN']);
+      // استخراج هوشمند نام محله - اولویت با فیلدهای رایج
+      const neighborhoodName = getNeighborhoodName(props);
+      const district = getFieldValue(props, ['district', 'mantaghe', 'region', 'District', 'REGION', 'منطقه']);
+      const city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY', 'شهر']);
+      const englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN', 'Name_EN']);
       const area = getFieldValue(props, ['area', 'masahat', 'Area', 'AREA', 'مساحت']);
       const population = getFieldValue(props, ['population', 'jamiat', 'Population', 'POPULATION', 'جمعیت']);
       const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
@@ -1713,6 +1713,58 @@ INDEX_TEMPLATE = """
           }
         }
       }
+      return null;
+    }
+    
+    // تابع هوشمند برای استخراج نام محله
+    function getNeighborhoodName(props) {
+      // لیست اولویت‌دار فیلدهای احتمالی برای نام محله
+      const priorityFields = [
+        'Name', 'NAME', 'name',  // اولویت اول: فیلدهای دقیق
+        'mahalle', 'MAHALLE', 'Mahalle',
+        'neighborhood', 'NEIGHBORHOOD', 'Neighborhood',
+        'neighbourhood', 'NEIGHBOURHOOD', 'Neighbourhood',
+        'محله', 'نام محله',
+        'title', 'TITLE', 'Title',
+        'label', 'LABEL', 'Label'
+      ];
+      
+      // ابتدا بررسی فیلدهای با اولویت
+      for (const fieldName of priorityFields) {
+        if (props.hasOwnProperty(fieldName)) {
+          const value = props[fieldName];
+          if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
+          }
+        }
+      }
+      
+      // اگر پیدا نشد، بررسی case-insensitive
+      for (const fieldName of priorityFields) {
+        for (const key in props) {
+          if (key.toLowerCase() === fieldName.toLowerCase()) {
+            const value = props[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              return String(value).trim();
+            }
+          }
+        }
+      }
+      
+      // اگر هنوز پیدا نشد، اولین فیلد غیرخالی را برگردان (به جز فیلدهای خاص)
+      const excludeFields = ['tootapp_url', 'geometry', 'feature_id', 'id', 'ID', 'gid', 'GID'];
+      for (const key in props) {
+        if (excludeFields.includes(key)) continue;
+        const value = props[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          // بررسی که مقدار عددی خالص نباشد (مثل ID)
+          const numValue = Number(value);
+          if (isNaN(numValue) || String(value).length > 10) {
+            return String(value).trim();
+          }
+        }
+      }
+      
       return null;
     }
 
