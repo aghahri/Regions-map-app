@@ -1051,7 +1051,7 @@ MANAGE_LINKS_TEMPLATE = """
               <input type="file" name="logo" accept="image/*" required style="flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px;" />
               <button type="submit" class="save" style="background: #17a2b8;">آپلود لوگو</button>
             </div>
-            <div class="save-status" id="logo_status_{{ neighborhood.id }}"></div>
+            <div class="save-status" id="logo_status_{{ neighborhood.id }}" style="margin-top: 0.5rem;"></div>
           </form>
         </div>
       </div>
@@ -1112,7 +1112,8 @@ MANAGE_LINKS_TEMPLATE = """
         e.preventDefault();
         const formData = new FormData(this);
         const neighborhoodName = formData.get('neighborhood_name');
-        const statusDiv = this.querySelector('.save-status');
+        const neighborhoodId = this.querySelector('input[name="neighborhood_name"]').closest('.neighborhood-item').querySelector('.neighborhood-form input[name="feature_id"]')?.value || 'unknown';
+        const statusDiv = document.getElementById('logo_status_' + neighborhoodId) || this.querySelector('.save-status');
         const submitBtn = this.querySelector('button[type="submit"]');
         
         // نمایش loading
