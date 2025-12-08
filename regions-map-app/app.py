@@ -1105,6 +1105,61 @@ MANAGE_LINKS_TEMPLATE = """
         }
       });
     });
+    
+    // مدیریت فرم‌های آپلود لوگو
+    document.querySelectorAll('.logo-upload-form').forEach(form => {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const neighborhoodName = formData.get('neighborhood_name');
+        const statusDiv = this.querySelector('.save-status');
+        const submitBtn = this.querySelector('button[type="submit"]');
+        
+        // نمایش loading
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'در حال آپلود...';
+        if (statusDiv) {
+          statusDiv.textContent = '';
+        }
+        
+        try {
+          const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            if (statusDiv) {
+              statusDiv.textContent = '✓ ' + result.message;
+              statusDiv.style.color = '#28a745';
+            }
+            submitBtn.textContent = 'آپلود لوگو';
+            submitBtn.disabled = false;
+            
+            // رفرش صفحه بعد از 1 ثانیه برای نمایش لوگوی جدید
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          } else {
+            if (statusDiv) {
+              statusDiv.textContent = '✗ ' + (result.error || 'خطا در آپلود');
+              statusDiv.style.color = '#d62828';
+            }
+            submitBtn.textContent = 'آپلود لوگو';
+            submitBtn.disabled = false;
+          }
+        } catch (error) {
+          if (statusDiv) {
+            statusDiv.textContent = '✗ خطا در آپلود';
+            statusDiv.style.color = '#d62828';
+          }
+          submitBtn.textContent = 'آپلود لوگو';
+          submitBtn.disabled = false;
+        }
+      });
+    });
   </script>
 </body>
 </html>
