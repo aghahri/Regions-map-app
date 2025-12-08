@@ -1663,6 +1663,58 @@ INDEX_TEMPLATE = """
     function loadMap(mapId) {
       window.location.href = '/map/' + mapId;
     }
+    
+    function openSidebar(props) {
+      // استخراج اطلاعات از properties
+      const neighborhoodName = getFieldValue(props, ['name', 'mahalle', 'neighborhood', 'neighbourhood', 'Name', 'MAHALLE']);
+      const district = getFieldValue(props, ['district', 'mantaghe', 'region', 'District', 'REGION']);
+      const city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY']);
+      const englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN']);
+      const area = getFieldValue(props, ['area', 'masahat', 'Area', 'AREA', 'مساحت']);
+      const population = getFieldValue(props, ['population', 'jamiat', 'Population', 'POPULATION', 'جمعیت']);
+      const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
+      
+      // پر کردن sidebar
+      document.getElementById('sidebarNeighborhoodName').textContent = neighborhoodName || 'نامشخص';
+      document.getElementById('sidebarDistrict').textContent = district ? `منطقه: ${district}` : 'منطقه: -';
+      document.getElementById('sidebarCity').textContent = city ? `شهر: ${city}` : 'شهر: -';
+      document.getElementById('sidebarEnglishName').textContent = englishName || '-';
+      document.getElementById('sidebarArea').textContent = area ? `${area} متر مربع` : '-';
+      document.getElementById('sidebarPopulation').textContent = population || '-';
+      
+      // تنظیم لینک توت‌اپ
+      const tootappLinkDiv = document.getElementById('sidebarTootappLink');
+      const tootappLink = document.getElementById('sidebarTootappUrl');
+      if (tootappUrl && tootappUrl !== 'https://tootapp.ir/join/') {
+        tootappLink.href = tootappUrl;
+        tootappLinkDiv.style.display = 'block';
+      } else {
+        tootappLinkDiv.style.display = 'none';
+      }
+      
+      // باز کردن sidebar
+      document.getElementById('neighborhoodSidebar').classList.add('open');
+      document.getElementById('sidebarOverlay').classList.add('show');
+    }
+    
+    function closeSidebar() {
+      document.getElementById('neighborhoodSidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('show');
+    }
+    
+    function getFieldValue(props, fieldNames) {
+      for (const fieldName of fieldNames) {
+        for (const key in props) {
+          if (key.toLowerCase() === fieldName.toLowerCase()) {
+            const value = props[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              return String(value).trim();
+            }
+          }
+        }
+      }
+      return null;
+    }
 
     function toggleSummary() {
       const summaryDiv = document.getElementById('summary-details');
