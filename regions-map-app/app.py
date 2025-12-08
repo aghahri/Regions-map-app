@@ -1999,7 +1999,8 @@ INDEX_TEMPLATE = """
     function getNeighborhoodName(props) {
       // لیست اولویت‌دار فیلدهای احتمالی برای نام محله
       const priorityFields = [
-        'Name', 'NAME', 'name',  // اولویت اول: فیلدهای دقیق
+        'NAME_NEW',  // اولویت اول: فیلد جدید
+        'Name', 'NAME', 'name',  // اولویت دوم: فیلدهای دقیق
         'mahalle', 'MAHALLE', 'Mahalle',
         'neighborhood', 'NEIGHBORHOOD', 'Neighborhood',
         'neighbourhood', 'NEIGHBOURHOOD', 'Neighbourhood',
