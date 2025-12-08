@@ -2661,6 +2661,31 @@ def serve_logo(filename: str):
     return "فایل پیدا نشد", 404
 
 
+@app.route("/api/neighborhood-logo")
+def api_get_neighborhood_logo():
+    """دریافت لوگوی یک محله"""
+    map_id = request.args.get('map_id', '').strip()
+    neighborhood_name = request.args.get('neighborhood_name', '').strip()
+    
+    if not map_id or not neighborhood_name:
+        return jsonify({"success": False, "error": "پارامترهای لازم ارسال نشد"}), 400
+    
+    try:
+        logo_filename = load_neighborhood_logo(map_id, neighborhood_name)
+        if logo_filename:
+            return jsonify({
+                "success": True,
+                "logo_filename": logo_filename
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "لوگویی برای این محله یافت نشد"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/admin/users", methods=["GET"])
 def admin_manage_users():
     """پنل مدیریت کاربران (فقط برای admin)"""
