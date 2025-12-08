@@ -1280,7 +1280,109 @@ INDEX_TEMPLATE = """
     header { padding: 1.5rem; text-align: center; background: #1f4e5f; color: #fff; }
     main { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
     .card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.07); }
-    #map { width: 100%; height: 520px; border-radius: 12px; }
+    #map { width: 100%; height: 520px; border-radius: 12px; position: relative; }
+    .map-container { position: relative; width: 100%; }
+    
+    /* Sidebar Styles */
+    .sidebar { 
+      position: fixed; 
+      top: 0; 
+      left: -400px; 
+      width: 380px; 
+      height: 100vh; 
+      background: #fff; 
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1); 
+      transition: left 0.3s ease; 
+      z-index: 1000; 
+      overflow-y: auto; 
+      direction: rtl;
+      padding: 1.5rem;
+    }
+    .sidebar.open { left: 0; }
+    .sidebar-header { 
+      border-bottom: 2px solid #2a9d8f; 
+      padding-bottom: 1rem; 
+      margin-bottom: 1.5rem; 
+    }
+    .sidebar-header h2 { 
+      margin: 0 0 0.5rem 0; 
+      color: #1f4e5f; 
+      font-size: 1.5rem; 
+    }
+    .sidebar-header .location-info { 
+      color: #6c757d; 
+      font-size: 0.9rem; 
+      margin-top: 0.5rem; 
+    }
+    .sidebar-close { 
+      position: absolute; 
+      top: 1rem; 
+      left: 1rem; 
+      background: #dc3545; 
+      color: #fff; 
+      border: none; 
+      border-radius: 50%; 
+      width: 35px; 
+      height: 35px; 
+      cursor: pointer; 
+      font-size: 1.2rem; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+    }
+    .sidebar-close:hover { background: #c82333; }
+    .sidebar-logo { 
+      text-align: center; 
+      margin: 1.5rem 0; 
+      padding: 1rem; 
+      background: #f8f9fa; 
+      border-radius: 8px; 
+    }
+    .sidebar-logo-icon { 
+      font-size: 3rem; 
+      color: #2a9d8f; 
+    }
+    .sidebar-content { margin-top: 1rem; }
+    .info-item { 
+      padding: 0.75rem 0; 
+      border-bottom: 1px solid #e9ecef; 
+    }
+    .info-item:last-child { border-bottom: none; }
+    .info-label { 
+      font-weight: bold; 
+      color: #1f4e5f; 
+      margin-bottom: 0.25rem; 
+    }
+    .info-value { 
+      color: #495057; 
+      font-size: 0.95rem; 
+    }
+    .tootapp-link { 
+      margin-top: 2rem; 
+      padding: 1rem; 
+      background: #2a9d8f; 
+      border-radius: 8px; 
+      text-align: center; 
+    }
+    .tootapp-link a { 
+      color: #fff; 
+      text-decoration: none; 
+      font-weight: bold; 
+      font-size: 1.1rem; 
+      display: block; 
+    }
+    .tootapp-link a:hover { text-decoration: underline; }
+    .sidebar-overlay { 
+      display: none; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      z-index: 999; 
+    }
+    .sidebar-overlay.show { display: block; }
     .history-list { list-style: none; padding: 0; margin: 0; max-height: 400px; overflow-y: auto; overflow-x: hidden; }
     .history-list::-webkit-scrollbar { width: 8px; }
     .history-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
@@ -1387,44 +1489,10 @@ INDEX_TEMPLATE = """
           if (feature.properties) {
             const props = feature.properties;
             
-            // کلمات کلیدی برای جستجو در نام فیلدها (case-insensitive)
-            const keywords = ['name', 'mahalle', 'district', 'region', 'area'];
-            
-            // فیلدهایی که باید نادیده گرفته شوند
-            const excludeFields = ['tootapp_url', 'geometry'];
-            
-            // ساخت محتوای پاپ‌آپ
-            const popupItems = [];
-            
-            // بررسی تمام فیلدها و نمایش آنهایی که نامشان شامل کلمات کلیدی است
-            for (const key in props) {
-              // نادیده گرفتن فیلدهای خاص
-              if (excludeFields.includes(key.toLowerCase())) {
-                continue;
-              }
-              
-              const value = props[key];
-              // بررسی اینکه فیلد خالی نباشد
-              if (value === undefined || value === null || String(value).trim() === '') {
-                continue;
-              }
-              
-              // بررسی اینکه نام فیلد شامل یکی از کلمات کلیدی باشد
-              const keyLower = key.toLowerCase();
-              const matchesKeyword = keywords.some(keyword => keyLower.includes(keyword.toLowerCase()));
-              
-              if (matchesKeyword) {
-                // نمایش فیلد با نام اصلی آن
-                popupItems.push(`<strong>${key}:</strong> ${String(value).trim()}`);
-              }
-            }
-            
-            const link = props.tootapp_url || 'https://tootapp.ir/join/';
-            popupItems.push(`<strong>پیوستن به شبکه محله:</strong> <a href="${link}" target="_blank" rel="noopener">ورود به توت‌اپ</a>`);
-            
-            const popupContent = popupItems.join('<br/>');
-
-            layer.bindPopup(popupContent);
+            // اضافه کردن event handler برای کلیک
+            layer.on('click', function() {
+              openSidebar(feature.properties);
+            });
           }
         }
       }).addTo(map);
