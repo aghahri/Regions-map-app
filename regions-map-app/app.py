@@ -1887,11 +1887,14 @@ INDEX_TEMPLATE = """
     function openSidebar(props) {
       // استخراج هوشمند نام محله - اولویت با فیلدهای رایج
       const neighborhoodName = getNeighborhoodName(props);
-      const district = getFieldValue(props, ['district', 'mantaghe', 'region', 'District', 'REGION', 'منطقه']);
+      // جستجوی منطقه: منطقه، region، regio، place یا district
+      const district = getFieldValueByKeywords(props, ['منطقه', 'region', 'regio', 'place', 'district']);
       const city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY', 'شهر']);
       const englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN', 'Name_EN']);
-      const area = getFieldValue(props, ['area', 'masahat', 'Area', 'AREA', 'مساحت']);
-      const population = getFieldValue(props, ['population', 'jamiat', 'Population', 'POPULATION', 'جمعیت']);
+      // جستجوی مساحت: مساحت، area یا ترکیبی از این کلمات
+      const area = getFieldValueByKeywords(props, ['مساحت', 'area']);
+      // جستجوی جمعیت: جمعیت، pop یا population
+      const population = getFieldValueByKeywords(props, ['جمعیت', 'pop', 'population']);
       const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
       
       // پر کردن sidebar
@@ -1953,6 +1956,42 @@ INDEX_TEMPLATE = """
           }
         }
       }
+      return null;
+    }
+    
+    // تابع بهبود یافته برای جستجوی فیلدها بر اساس کلمات کلیدی (case-insensitive و partial match)
+    function getFieldValueByKeywords(props, keywords) {
+      // اولویت اول: exact match (case-insensitive)
+      for (const keyword of keywords) {
+        for (const key in props) {
+          if (key.toLowerCase() === keyword.toLowerCase()) {
+            const value = props[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              return String(value).trim();
+            }
+          }
+        }
+      }
+      
+      // اولویت دوم: partial match (کلمه کلیدی در نام فیلد باشد)
+      for (const keyword of keywords) {
+        const keywordLower = keyword.toLowerCase();
+        for (const key in props) {
+          const keyLower = key.toLowerCase();
+          // بررسی اینکه کلمه کلیدی در نام فیلد باشد
+          if (keyLower.includes(keywordLower) || keywordLower.includes(keyLower)) {
+            const value = props[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              // بررسی که مقدار عددی یا رشته معتبر باشد
+              const strValue = String(value).trim();
+              if (strValue !== '' && strValue !== 'null' && strValue !== 'undefined') {
+                return strValue;
+              }
+            }
+          }
+        }
+      }
+      
       return null;
     }
     
