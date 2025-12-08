@@ -33,12 +33,15 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = BASE_DIR / "uploads" / "regions" / "history.json"
 LINKS_DIR = BASE_DIR / "uploads" / "regions" / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
+LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
+LOGO_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_DIR = BASE_DIR / "uploads" / "regions" / "features"
 FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_INDEX_FILE = BASE_DIR / "uploads" / "regions" / "features_index.json"
 USERS_FILE = BASE_DIR / "uploads" / "regions" / "users.json"
 
 ALLOWED_EXTENSIONS = {"zip", "geojson", "json"}
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "svg"}
 TOOTAPP_BASE_URL = "https://tootapp.ir/join/"
 
 # نقش‌های کاربری
@@ -521,6 +524,62 @@ def save_links(map_id: str, links: Dict[str, str]) -> None:
         json.dump(links, f, ensure_ascii=False, indent=2)
 
 
+def get_neighborhood_key(map_id: str, neighborhood_name: str) -> str:
+    """ساخت کلید منحصر به فرد برای محله"""
+    key_string = f"{map_id}_{neighborhood_name}"
+    return hashlib.md5(key_string.encode('utf-8')).hexdigest()
+
+
+def get_neighborhood_logo_path(map_id: str, neighborhood_name: str) -> Path:
+    """مسیر فایل JSON لوگوی محله"""
+    key = get_neighborhood_key(map_id, neighborhood_name)
+    return LOGO_DIR / f"{key}.json"
+
+
+def load_neighborhood_logo(map_id: str, neighborhood_name: str) -> Optional[str]:
+    """بارگذاری نام فایل لوگوی محله"""
+    logo_file = get_neighborhood_logo_path(map_id, neighborhood_name)
+    if logo_file.exists():
+        try:
+            with open(logo_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("logo_filename")
+        except Exception:
+            return None
+    return None
+
+
+def save_neighborhood_logo(map_id: str, neighborhood_name: str, logo_filename: str) -> None:
+    """ذخیره نام فایل لوگوی محله"""
+    logo_file = get_neighborhood_logo_path(map_id, neighborhood_name)
+    data = {
+        "map_id": map_id,
+        "neighborhood_name": neighborhood_name,
+        "logo_filename": logo_filename
+    }
+    with open(logo_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def get_all_neighborhood_logos(map_id: str) -> Dict[str, str]:
+    """دریافت تمام لوگوهای محلات یک نقشه"""
+    logos = {}
+    if not LOGO_DIR.exists():
+        return logos
+    
+    for logo_file in LOGO_DIR.glob("*.json"):
+        try:
+            with open(logo_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("map_id") == map_id:
+                    neighborhood_name = data.get("neighborhood_name", "")
+                    logos[neighborhood_name] = data.get("logo_filename", "")
+        except Exception:
+            continue
+    
+    return logos
+
+
 def load_features_index() -> List[Dict]:
     """بارگذاری فهرست عوارض محله‌ها"""
     if not FEATURES_INDEX_FILE.exists():
@@ -965,15 +1024,36 @@ MANAGE_LINKS_TEMPLATE = """
       <div class="neighborhood-item">
         <div class="neighborhood-name">{{ neighborhood.name }}</div>
         <div class="neighborhood-info">{{ neighborhood.info }}</div>
+        
+        <!-- بخش لینک توت‌اپ -->
         <form method="post" action="/admin/links/{{ map_id }}/save" class="neighborhood-form">
           <input type="hidden" name="feature_id" value="{{ neighborhood.id }}" />
           <div class="link-input-group">
             <span class="link-prefix">tootapp.ir/join/</span>
             <input type="text" name="link" value="{{ neighborhood.link }}" placeholder="مثلاً: Tehran3Da" required />
-            <button type="submit" class="save">ذخیره</button>
+            <button type="submit" class="save">ذخیره لینک</button>
           </div>
           <div class="save-status" id="status_{{ neighborhood.id }}"></div>
         </form>
+        
+        <!-- بخش آپلود لوگو -->
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; color: #1f4e5f;">لوگو/عکس محله:</label>
+          {% if neighborhood.logo_filename %}
+          <div style="margin-bottom: 0.5rem;">
+            <img src="/uploads/logos/{{ neighborhood.logo_filename }}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6;" />
+            <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+          </div>
+          {% endif %}
+          <form method="post" action="/admin/neighborhoods/{{ map_id }}/upload-logo" enctype="multipart/form-data" class="logo-upload-form">
+            <input type="hidden" name="neighborhood_name" value="{{ neighborhood.name }}" />
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="file" name="logo" accept="image/*" required style="flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px;" />
+              <button type="submit" class="save" style="background: #17a2b8;">آپلود لوگو</button>
+            </div>
+            <div class="save-status" id="logo_status_{{ neighborhood.id }}"></div>
+          </form>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -1690,6 +1770,26 @@ INDEX_TEMPLATE = """
         tootappLinkDiv.style.display = 'block';
       } else {
         tootappLinkDiv.style.display = 'none';
+      }
+      
+      // بارگذاری لوگو از سرور
+      const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
+      const logoContainer = document.querySelector('.sidebar-logo');
+      if (selectedMapId && neighborhoodName) {
+        fetch(`/api/neighborhood-logo?map_id=${selectedMapId}&neighborhood_name=${encodeURIComponent(neighborhoodName)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.logo_filename) {
+              logoContainer.innerHTML = `<img src="/uploads/logos/${data.logo_filename}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px;" />`;
+            } else {
+              logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
+            }
+          })
+          .catch(() => {
+            logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
+          });
+      } else {
+        logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
       }
       
       // باز کردن sidebar
@@ -2424,11 +2524,16 @@ def admin_manage_links(map_id: str):
             # لینک ذخیره شده
             link = saved_links.get(feature_id, "") if feature_id else ""
             
+            # لوگوی ذخیره شده
+            saved_logos = get_all_neighborhood_logos(map_id)
+            logo_filename = saved_logos.get(name, "")
+            
             neighborhoods.append({
                 "id": feature_id or f"feature_{len(neighborhoods)}",
                 "name": name,
                 "info": info,
-                "link": link
+                "link": link,
+                "logo_filename": logo_filename
             })
 
     return render_template_string(
@@ -2483,6 +2588,77 @@ def admin_save_single_link(map_id: str):
         return json.dumps({"success": True, "message": "لینک با موفقیت ذخیره شد"}), 200, {"Content-Type": "application/json"}
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)}), 500, {"Content-Type": "application/json"}
+
+
+@app.route("/admin/neighborhoods/<map_id>/upload-logo", methods=["POST"])
+def admin_upload_neighborhood_logo(map_id: str):
+    """آپلود لوگو برای یک محله"""
+    if not session.get("username"):
+        return jsonify({"success": False, "error": "نیاز به ورود"}), 401
+    
+    if not has_permission("manage_links"):
+        return jsonify({"success": False, "error": "شما دسترسی ندارید"}), 403
+    
+    if 'logo' not in request.files:
+        return jsonify({"success": False, "error": "فایل لوگو ارسال نشد"}), 400
+    
+    logo_file = request.files['logo']
+    neighborhood_name = request.form.get('neighborhood_name', '').strip()
+    
+    if not neighborhood_name:
+        return jsonify({"success": False, "error": "نام محله مشخص نشد"}), 400
+    
+    if logo_file.filename == '':
+        return jsonify({"success": False, "error": "فایلی انتخاب نشد"}), 400
+    
+    # بررسی نوع فایل
+    filename = logo_file.filename
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({"success": False, "error": f"نوع فایل مجاز نیست. انواع مجاز: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"}), 400
+    
+    try:
+        # ساخت نام فایل منحصر به فرد
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        key = get_neighborhood_key(map_id, neighborhood_name)
+        safe_filename = secure_filename(filename)
+        logo_filename = f"{key}_{timestamp}_{safe_filename}"
+        logo_path = LOGO_DIR / logo_filename
+        
+        # حذف لوگوی قبلی اگر وجود داشته باشد
+        old_logo = load_neighborhood_logo(map_id, neighborhood_name)
+        if old_logo:
+            old_logo_path = LOGO_DIR / old_logo
+            if old_logo_path.exists():
+                try:
+                    old_logo_path.unlink()
+                except Exception:
+                    pass
+        
+        # ذخیره فایل
+        logo_file.save(logo_path)
+        
+        # ذخیره اطلاعات در JSON
+        save_neighborhood_logo(map_id, neighborhood_name, logo_filename)
+        
+        return jsonify({
+            "success": True,
+            "message": "لوگو با موفقیت آپلود شد",
+            "logo_filename": logo_filename
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"success": False, "error": f"خطا در آپلود: {str(e)}"}), 500
+
+
+@app.route("/uploads/logos/<filename>")
+def serve_logo(filename: str):
+    """سرو کردن فایل‌های لوگو"""
+    logo_path = LOGO_DIR / filename
+    if logo_path.exists() and logo_path.is_file():
+        from flask import send_from_directory
+        return send_from_directory(str(LOGO_DIR), filename)
+    return "فایل پیدا نشد", 404
 
 
 @app.route("/admin/users", methods=["GET"])
