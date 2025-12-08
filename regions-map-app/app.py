@@ -1458,7 +1458,41 @@ INDEX_TEMPLATE = """
         </div>
       </div>
       {% endif %}
-      <div id="map"></div>
+      <div class="map-container">
+        <div id="map"></div>
+        <!-- Sidebar -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+        <div class="sidebar" id="neighborhoodSidebar">
+          <button class="sidebar-close" onclick="closeSidebar()">×</button>
+          <div class="sidebar-header">
+            <h2 id="sidebarNeighborhoodName">نام محله</h2>
+            <div class="location-info">
+              <div id="sidebarDistrict">منطقه: -</div>
+              <div id="sidebarCity">شهر: -</div>
+            </div>
+          </div>
+          <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">📍</div>
+          </div>
+          <div class="sidebar-content" id="sidebarContent">
+            <div class="info-item">
+              <div class="info-label">نام انگلیسی:</div>
+              <div class="info-value" id="sidebarEnglishName">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">مساحت:</div>
+              <div class="info-value" id="sidebarArea">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">جمعیت:</div>
+              <div class="info-value" id="sidebarPopulation">-</div>
+            </div>
+          </div>
+          <div class="tootapp-link" id="sidebarTootappLink" style="display: none;">
+            <a href="#" target="_blank" id="sidebarTootappUrl">پیوند به توت‌اپ</a>
+          </div>
+        </div>
+      </div>
     </section>
     <div class="admin-link">
       <a href="/admin/login">ورود به پنل ادمین</a>
