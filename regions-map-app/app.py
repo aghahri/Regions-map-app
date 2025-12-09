@@ -2710,7 +2710,7 @@ def admin_manage_links(map_id: str):
             for field_name in priority_fields:
                 if field_name in props:
                     value = props[field_name]
-                    if value and str(value).strip():
+                    if value and str(value).strip() and str(value).strip() != 'null' and str(value).strip() != 'None':
                         name = str(value).strip()
                         break
             
@@ -2721,7 +2721,29 @@ def admin_manage_links(map_id: str):
                     for key in props:
                         if key.lower() == field_lower:
                             value = props[key]
-                            if value and str(value).strip():
+                            if value and str(value).strip() and str(value).strip() != 'null' and str(value).strip() != 'None':
+                                name = str(value).strip()
+                                break
+                    if name:
+                        break
+            
+            # اگر هنوز پیدا نشد، جستجوی partial match (کلمه کلیدی در نام فیلد)
+            if not name:
+                keywords = ['name', 'mahalle', 'neighborhood', 'neighbourhood', 'محله']
+                for keyword in keywords:
+                    keyword_lower = keyword.lower()
+                    for key in props:
+                        key_lower = key.lower()
+                        if keyword_lower in key_lower or key_lower in keyword_lower:
+                            value = props[key]
+                            if value and str(value).strip() and str(value).strip() != 'null' and str(value).strip() != 'None':
+                                # بررسی که مقدار عددی خالص نباشد
+                                try:
+                                    num_value = float(str(value))
+                                    if num_value < 0 or num_value > 1000000:  # احتمالاً ID است نه نام
+                                        continue
+                                except (ValueError, TypeError):
+                                    pass
                                 name = str(value).strip()
                                 break
                     if name:
