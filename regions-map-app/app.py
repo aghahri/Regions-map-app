@@ -2867,15 +2867,18 @@ def admin_upload_neighborhood_logo(map_id: str):
         return jsonify({"success": False, "error": f"نوع فایل مجاز نیست. انواع مجاز: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"}), 400
     
     try:
+        # نرمال‌سازی نام محله (حذف فاصله‌های اضافی)
+        neighborhood_name_normalized = neighborhood_name.strip()
+        
         # ساخت نام فایل منحصر به فرد
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        key = get_neighborhood_key(map_id, neighborhood_name)
+        key = get_neighborhood_key(map_id, neighborhood_name_normalized)
         safe_filename = secure_filename(filename)
         logo_filename = f"{key}_{timestamp}_{safe_filename}"
         logo_path = LOGO_DIR / logo_filename
         
-        # حذف لوگوی قبلی اگر وجود داشته باشد
-        old_logo = load_neighborhood_logo(map_id, neighborhood_name)
+        # حذف لوگوی قبلی اگر وجود داشته باشد (با نام نرمال‌سازی شده)
+        old_logo = load_neighborhood_logo(map_id, neighborhood_name_normalized)
         if old_logo:
             old_logo_path = LOGO_DIR / old_logo
             if old_logo_path.exists():
@@ -2887,8 +2890,8 @@ def admin_upload_neighborhood_logo(map_id: str):
         # ذخیره فایل
         logo_file.save(logo_path)
         
-        # ذخیره اطلاعات در JSON
-        save_neighborhood_logo(map_id, neighborhood_name, logo_filename)
+        # ذخیره اطلاعات در JSON با نام نرمال‌سازی شده
+        save_neighborhood_logo(map_id, neighborhood_name_normalized, logo_filename)
         
         return jsonify({
             "success": True,
