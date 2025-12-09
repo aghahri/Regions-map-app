@@ -2732,9 +2732,10 @@ def admin_manage_links(map_id: str):
             
             # اطلاعات اضافی
             info_parts = []
+            info_keywords = ['name', 'mahalle', 'district', 'region']
             for key in props:
                 key_lower = key.lower()
-                if any(kw in key_lower for kw in keywords) and str(props[key]).strip():
+                if any(kw in key_lower for kw in info_keywords) and str(props[key]).strip():
                     info_parts.append(f"{key}: {props[key]}")
             info = " | ".join(info_parts[:3]) if info_parts else "بدون اطلاعات"
             
