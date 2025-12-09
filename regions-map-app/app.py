@@ -2698,23 +2698,34 @@ def admin_manage_links(map_id: str):
             props = feature.get("properties", {})
             feature_id = get_feature_identifier(feature)
             
-            # پیدا کردن نام محله - استفاده از همان منطق JavaScript
+            # پیدا کردن نام محله - استفاده از همان منطق JavaScript (getNeighborhoodName)
             name = None
             # اولویت اول: NAME_NEW
-            if 'NAME_NEW' in props and props['NAME_NEW']:
-                name = str(props['NAME_NEW']).strip()
-            elif 'name_new' in props and props['name_new']:
-                name = str(props['name_new']).strip()
-            else:
-                # جستجوی سایر فیلدها
-                keywords = ['name', 'mahalle', 'district', 'region']
-                for key in props:
-                    key_lower = key.lower()
-                    if any(kw in key_lower for kw in keywords):
-                        value = props[key]
-                        if value and str(value).strip():
-                            name = str(value).strip()
-                            break
+            priority_fields = ['NAME_NEW', 'Name', 'NAME', 'name', 'mahalle', 'MAHALLE', 'Mahalle',
+                             'neighborhood', 'NEIGHBORHOOD', 'Neighborhood', 'neighbourhood', 
+                             'NEIGHBOURHOOD', 'Neighbourhood', 'محله', 'نام محله',
+                             'title', 'TITLE', 'Title', 'label', 'LABEL', 'Label']
+            
+            # ابتدا بررسی exact match
+            for field_name in priority_fields:
+                if field_name in props:
+                    value = props[field_name]
+                    if value and str(value).strip():
+                        name = str(value).strip()
+                        break
+            
+            # اگر پیدا نشد، بررسی case-insensitive
+            if not name:
+                for field_name in priority_fields:
+                    field_lower = field_name.lower()
+                    for key in props:
+                        if key.lower() == field_lower:
+                            value = props[key]
+                            if value and str(value).strip():
+                                name = str(value).strip()
+                                break
+                    if name:
+                        break
             
             if not name:
                 name = "نامشخص"
