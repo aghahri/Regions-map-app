@@ -537,7 +537,8 @@ def get_neighborhood_logo_path(map_id: str, neighborhood_name: str) -> Path:
 
 
 def load_neighborhood_logo(map_id: str, neighborhood_name: str) -> Optional[str]:
-    """بارگذاری نام فایل لوگوی محله"""
+    """بارگذاری نام فایل لوگوی محله - با جستجوی case-insensitive"""
+    # ابتدا جستجوی exact match
     logo_file = get_neighborhood_logo_path(map_id, neighborhood_name)
     if logo_file.exists():
         try:
@@ -545,7 +546,24 @@ def load_neighborhood_logo(map_id: str, neighborhood_name: str) -> Optional[str]
                 data = json.load(f)
                 return data.get("logo_filename")
         except Exception:
-            return None
+            pass
+    
+    # اگر پیدا نشد، جستجوی case-insensitive در تمام فایل‌های JSON
+    if not LOGO_DIR.exists():
+        return None
+    
+    neighborhood_name_normalized = neighborhood_name.strip().lower()
+    for logo_file in LOGO_DIR.glob("*.json"):
+        try:
+            with open(logo_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("map_id") == map_id:
+                    saved_name = data.get("neighborhood_name", "").strip().lower()
+                    if saved_name == neighborhood_name_normalized:
+                        return data.get("logo_filename")
+        except Exception:
+            continue
+    
     return None
 
 
@@ -2875,12 +2893,17 @@ def api_get_neighborhood_logo():
                 "logo_filename": logo_filename
             })
         else:
+            # اگر پیدا نشد، لیست تمام لوگوهای موجود را برای debug برگردان
+            all_logos = get_all_neighborhood_logos(map_id)
             return jsonify({
                 "success": False,
-                "message": "لوگویی برای این محله یافت نشد"
+                "message": "لوگویی برای این محله یافت نشد",
+                "requested_name": neighborhood_name,
+                "available_logos": list(all_logos.keys()) if all_logos else []
             })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        import traceback
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/admin/users", methods=["GET"])
