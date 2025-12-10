@@ -2544,6 +2544,14 @@ def index():
         if map_data:
             geojson = map_data.get("geojson")
             summary = map_data.get("summary")
+            # اعمال ویرایش‌های محلات
+            if geojson and geojson.get("features"):
+                for feature in geojson.get("features", []):
+                    props = feature.get("properties", {})
+                    feature_id = get_feature_identifier(feature)
+                    original_name = props.get('NAME_NEW') or props.get('Name') or props.get('name') or 'نامشخص'
+                    props = apply_neighborhood_edits(props, selected_map_id, feature_id, original_name)
+                    feature["properties"] = props
             # اتصال لینک‌های توت‌اپ (با استفاده از لینک‌های ذخیره شده)
             if geojson:
                 _attach_tootapp_links(geojson, selected_map_id)
