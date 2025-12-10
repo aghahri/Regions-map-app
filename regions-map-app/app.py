@@ -3152,7 +3152,7 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
       if (props.gid) return String(props.gid);
       if (props.OBJECTID) return String(props.OBJECTID);
       
-      // ساخت شناسه از ترکیب فیلدهای نام
+      // ساخت شناسه از ترکیب فیلدهای نام (مشابه Python: "key:value|key:value")
       const keywords = ['name', 'mahalle', 'district', 'region'];
       const parts = [];
       for (const key in props) {
@@ -3160,13 +3160,13 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
         if (keywords.some(kw => keyLower.includes(kw))) {
           const value = props[key];
           if (value && String(value).trim()) {
-            parts.push(String(value).trim());
+            parts.push(key + ':' + String(value).trim());
           }
         }
       }
       
       if (parts.length > 0) {
-        return parts.join('_');
+        return parts.join('|');
       }
       
       // در نهایت از geometry استفاده می‌کنیم
