@@ -3143,11 +3143,38 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
       return 'نامشخص';
     }
     
-    // تابع ساخت feature_id
+    // تابع ساخت feature_id (مشابه get_feature_identifier در Python)
     function getFeatureId(feature) {
       const props = feature.properties || {};
-      return props.feature_id || props.id || props.gid || props.OBJECTID || 
-             (feature.geometry ? JSON.stringify(feature.geometry).substring(0, 50) : 'unknown');
+      // اولویت اول: فیلدهای شناسه
+      if (props.feature_id) return props.feature_id;
+      if (props.id) return String(props.id);
+      if (props.gid) return String(props.gid);
+      if (props.OBJECTID) return String(props.OBJECTID);
+      
+      // ساخت شناسه از ترکیب فیلدهای نام
+      const keywords = ['name', 'mahalle', 'district', 'region'];
+      const parts = [];
+      for (const key in props) {
+        const keyLower = key.toLowerCase();
+        if (keywords.some(kw => keyLower.includes(kw))) {
+          const value = props[key];
+          if (value && String(value).trim()) {
+            parts.push(String(value).trim());
+          }
+        }
+      }
+      
+      if (parts.length > 0) {
+        return parts.join('_');
+      }
+      
+      // در نهایت از geometry استفاده می‌کنیم
+      if (feature.geometry) {
+        return JSON.stringify(feature.geometry).substring(0, 50);
+      }
+      
+      return 'unknown';
     }
     
     // مقداردهی اولیه نقشه
