@@ -3014,6 +3014,85 @@ def api_get_neighborhood_logo():
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@app.route("/admin/neighborhoods/edit/<map_id>", methods=["GET"])
+def admin_edit_neighborhoods(map_id: str):
+    """صفحه ویرایش محلات - با نقشه تعاملی"""
+    if not session.get("username"):
+        return redirect(url_for("admin_login"))
+    
+    if not has_permission("manage_links"):
+        return redirect(url_for("admin_panel") + "?error=شما دسترسی ویرایش محلات ندارید")
+    
+    # بارگذاری داده‌های نقشه
+    map_data = load_map_data(map_id)
+    if not map_data:
+        return redirect(url_for("admin_panel") + "?error=نقشه پیدا نشد")
+    
+    geojson = map_data.get("geojson")
+    history = load_history()
+    map_info = next((item for item in history if item.get("map_id") == map_id), None)
+    map_name = map_info.get("map_name", map_info.get("original_filename", "نقشه")) if map_info else "نقشه"
+    
+    error = request.args.get("error")
+    success = request.args.get("success")
+    
+    # بارگذاری ویرایش‌های موجود
+    edits = load_neighborhood_edits(map_id)
+    
+    return render_template_string(
+        EDIT_NEIGHBORHOODS_TEMPLATE,
+        map_id=map_id,
+        map_name=map_name,
+        geojson=json.dumps(geojson) if geojson else None,
+        error=error,
+        success=success,
+        edits=json.dumps(edits)
+    )
+
+
+@app.route("/admin/neighborhoods/edit/<map_id>/save", methods=["POST"])
+def admin_save_neighborhood_edit(map_id: str):
+    """ذخیره ویرایش یک محله"""
+    if not session.get("username"):
+        return jsonify({"success": False, "error": "نیاز به ورود"}), 401
+    
+    if not has_permission("manage_links"):
+        return jsonify({"success": False, "error": "شما دسترسی ندارید"}), 403
+    
+    try:
+        data = request.get_json()
+        feature_id = data.get("feature_id", "").strip()
+        original_name = data.get("original_name", "").strip()
+        edits = data.get("edits", {})
+        
+        if not feature_id or not original_name:
+            return jsonify({"success": False, "error": "شناسه محله یا نام اصلی مشخص نشد"}), 400
+        
+        # بارگذاری ویرایش‌های موجود
+        all_edits = load_neighborhood_edits(map_id)
+        
+        # ساخت کلید
+        edit_key = get_neighborhood_edit_key(feature_id, original_name)
+        
+        # ذخیره ویرایش‌ها
+        all_edits[edit_key] = {
+            "feature_id": feature_id,
+            "original_name": original_name,
+            "edits": edits,
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        save_neighborhood_edits(map_id, all_edits)
+        
+        return jsonify({
+            "success": True,
+            "message": "ویرایش‌ها با موفقیت ذخیره شد"
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 EDIT_NEIGHBORHOODS_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fa">
