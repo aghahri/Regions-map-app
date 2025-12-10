@@ -638,13 +638,24 @@ def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original
         return props
     
     edits = load_neighborhood_edits(map_id)
+    if not edits:
+        return props
+    
     edit_key = get_neighborhood_edit_key(feature_id, original_name)
     
-    if edit_key in edits:
-        # داده ذخیره شده شامل کلید edits است؛ اگر نبود، خود edit_data را استفاده می‌کنیم
+    # جستجو در تمام ویرایش‌ها برای پیدا کردن ویرایش مربوط به این feature_id
+    edit_data = None
+    for key, edit_item in edits.items():
+        if isinstance(edit_item, dict) and edit_item.get("feature_id") == feature_id:
+            edit_data = edit_item.get("edits", {})
+            break
+    
+    # اگر ویرایش پیدا نشد، از کلید مستقیم استفاده کن
+    if edit_data is None and edit_key in edits:
         edit_data_root = edits[edit_key]
         edit_data = edit_data_root.get("edits", edit_data_root) if isinstance(edit_data_root, dict) else {}
-        
+    
+    if edit_data:
         # اعمال تغییرات - اضافه کردن به properties (فقط اگر مقدار وجود داشته باشد)
         if "name" in edit_data and edit_data["name"]:
             props["NAME_NEW"] = str(edit_data["name"]).strip()  # استفاده از NAME_NEW برای اولویت
@@ -1846,9 +1857,13 @@ INDEX_TEMPLATE = """
           if (feature.properties) {
             const props = feature.properties;
             
+            // ذخیره feature در layer برای دسترسی بعدی
+            layer.feature = feature;
+            
             // اضافه کردن event handler برای کلیک
             layer.on('click', function() {
-              openSidebar(feature.properties);
+              // استفاده از properties به‌روز شده از feature
+              openSidebar(layer.feature.properties);
             });
           }
         }
@@ -1988,6 +2003,9 @@ INDEX_TEMPLATE = """
     }
     
     function openSidebar(props) {
+      // دیباگ: نمایش properties
+      console.log('Sidebar properties:', props);
+      
       // استخراج هوشمند نام محله - اولویت با فیلدهای رایج
       const neighborhoodName = getNeighborhoodName(props);
       
@@ -2021,6 +2039,9 @@ INDEX_TEMPLATE = """
       if (!population) {
         population = getFieldValueByKeywords(props, ['جمعیت', 'pop', 'population']);
       }
+      
+      // دیباگ: نمایش مقادیر استخراج شده
+      console.log('Extracted values:', { neighborhoodName, district, city, englishName, area, population });
       
       const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
       
