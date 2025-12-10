@@ -35,6 +35,8 @@ LINKS_DIR = BASE_DIR / "uploads" / "regions" / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
 LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
+NEIGHBORHOOD_EDITS_DIR = BASE_DIR / "uploads" / "regions" / "neighborhood_edits"
+NEIGHBORHOOD_EDITS_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_DIR = BASE_DIR / "uploads" / "regions" / "features"
 FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_INDEX_FILE = BASE_DIR / "uploads" / "regions" / "features_index.json"
@@ -598,6 +600,60 @@ def get_all_neighborhood_logos(map_id: str) -> Dict[str, str]:
     return logos
 
 
+def get_neighborhood_edits_file(map_id: str) -> Path:
+    """مسیر فایل ویرایش‌های محلات یک نقشه"""
+    return NEIGHBORHOOD_EDITS_DIR / f"{map_id}.json"
+
+
+def load_neighborhood_edits(map_id: str) -> Dict[str, Dict]:
+    """بارگذاری ویرایش‌های محلات یک نقشه"""
+    edits_file = get_neighborhood_edits_file(map_id)
+    if not edits_file.exists():
+        return {}
+    try:
+        with open(edits_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_neighborhood_edits(map_id: str, edits: Dict[str, Dict]) -> None:
+    """ذخیره ویرایش‌های محلات یک نقشه"""
+    edits_file = get_neighborhood_edits_file(map_id)
+    with open(edits_file, "w", encoding="utf-8") as f:
+        json.dump(edits, f, ensure_ascii=False, indent=2)
+
+
+def get_neighborhood_edit_key(feature_id: str, original_name: str) -> str:
+    """ساخت کلید منحصر به فرد برای ویرایش یک محله"""
+    key_string = f"{feature_id}_{original_name}"
+    return hashlib.md5(key_string.encode('utf-8')).hexdigest()
+
+
+def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original_name: str) -> Dict:
+    """اعمال ویرایش‌های محله به properties"""
+    edits = load_neighborhood_edits(map_id)
+    edit_key = get_neighborhood_edit_key(feature_id, original_name)
+    
+    if edit_key in edits:
+        edit_data = edits[edit_key]
+        # اعمال تغییرات - اضافه کردن به properties
+        if "name" in edit_data:
+            props["NAME_NEW"] = edit_data["name"]  # استفاده از NAME_NEW برای اولویت
+        if "population" in edit_data:
+            props["population"] = edit_data["population"]
+        if "area" in edit_data:
+            props["area"] = edit_data["area"]
+        if "district" in edit_data:
+            props["district"] = edit_data["district"]
+        if "city" in edit_data:
+            props["city"] = edit_data["city"]
+        if "english_name" in edit_data:
+            props["english_name"] = edit_data["english_name"]
+    
+    return props
+
+
 def load_features_index() -> List[Dict]:
     """بارگذاری فهرست عوارض محله‌ها"""
     if not FEATURES_INDEX_FILE.exists():
@@ -939,6 +995,9 @@ ADMIN_TEMPLATE = """
           <div class="history-item-actions">
             <a href="/admin/links/{{ item.map_id }}" style="text-decoration: none;">
               <button type="button" style="background: #2a9d8f; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">مدیریت لینک‌های محلات</button>
+            </a>
+            <a href="/admin/neighborhoods/edit/{{ item.map_id }}" style="text-decoration: none;">
+              <button type="button" style="background: #17a2b8; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">ویرایش محلات</button>
             </a>
             <a href="/admin/features/links/{{ item.map_id }}" style="text-decoration: none;">
               <button type="button" style="background: #ffc107; color: #000; padding: 0.5rem 1rem; font-size: 0.9rem; margin-left: 0.5rem;">مدیریت لینک‌های عوارض</button>
@@ -2695,8 +2754,12 @@ def admin_manage_links(map_id: str):
     
     if geojson and geojson.get("features"):
         for feature in geojson.get("features", []):
-            props = feature.get("properties", {})
+            props = feature.get("properties", {}).copy()  # کپی برای اعمال ویرایش‌ها
             feature_id = get_feature_identifier(feature)
+            
+            # اعمال ویرایش‌های محله
+            original_name = props.get('NAME_NEW') or props.get('Name') or props.get('name') or 'نامشخص'
+            props = apply_neighborhood_edits(props, map_id, feature_id, original_name)
             
             # پیدا کردن نام محله - استفاده از همان منطق JavaScript (getNeighborhoodName)
             name = None
@@ -2941,6 +3004,269 @@ def api_get_neighborhood_logo():
     except Exception as e:
         import traceback
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+EDIT_NEIGHBORHOODS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <title>ویرایش محلات</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f4f6f8; margin: 0; padding: 0; direction: rtl; }
+    header { padding: 1.5rem; text-align: center; background: #1f4e5f; color: #fff; }
+    main { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
+    .card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.07); }
+    button { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; background: #2a9d8f; color: #fff; margin-left: 0.5rem; }
+    button.back { background: #6c757d; }
+    button.save { background: #28a745; }
+    button.cancel { background: #6c757d; }
+    .error { color: #d62828; margin-top: 0.75rem; padding: 0.5rem; background: #f8d7da; border-radius: 6px; }
+    .success { color: #28a745; margin-top: 0.75rem; padding: 0.5rem; background: #d4edda; border-radius: 6px; }
+    #map { width: 100%; height: 600px; border-radius: 12px; margin-bottom: 1.5rem; }
+    .edit-form { display: none; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; margin-top: 1rem; }
+    .edit-form.active { display: block; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: bold; margin-bottom: 0.5rem; color: #1f4e5f; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid #dde3ea; border-radius: 8px; box-sizing: border-box; }
+    .form-actions { margin-top: 1.5rem; display: flex; gap: 0.5rem; }
+    .selected-neighborhood { background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ویرایش محلات</h1>
+    <p>{{ map_name }}</p>
+  </header>
+  <main>
+    <div class="card">
+      <div style="margin-bottom: 1rem;">
+        <a href="/admin" style="text-decoration: none;">
+          <button type="button" class="back">← بازگشت به پنل ادمین</button>
+        </a>
+      </div>
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+        <div class="success">{{ success }}</div>
+      {% endif %}
+      <h3>راهنما: روی محله مورد نظر کلیک کنید تا مشخصات آن را ویرایش کنید</h3>
+      <div id="map"></div>
+      <div id="selectedNeighborhood" class="selected-neighborhood" style="display: none;">
+        <h4 id="selectedName">محله انتخاب شده</h4>
+        <p id="selectedInfo" style="color: #6c757d; font-size: 0.9rem;"></p>
+      </div>
+      <div id="editForm" class="edit-form">
+        <h3>ویرایش مشخصات محله</h3>
+        <form id="neighborhoodEditForm">
+          <input type="hidden" id="editFeatureId" />
+          <input type="hidden" id="editOriginalName" />
+          <div class="form-group">
+            <label>نام محله:</label>
+            <input type="text" id="editName" />
+          </div>
+          <div class="form-group">
+            <label>نام انگلیسی:</label>
+            <input type="text" id="editEnglishName" />
+          </div>
+          <div class="form-group">
+            <label>منطقه:</label>
+            <input type="text" id="editDistrict" />
+          </div>
+          <div class="form-group">
+            <label>شهر:</label>
+            <input type="text" id="editCity" />
+          </div>
+          <div class="form-group">
+            <label>جمعیت:</label>
+            <input type="number" id="editPopulation" />
+          </div>
+          <div class="form-group">
+            <label>مساحت (متر مربع):</label>
+            <input type="number" id="editArea" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="save">ذخیره تغییرات</button>
+            <button type="button" class="cancel" onclick="cancelEdit()">انصراف</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  <script>
+    const geojsonData = {{ geojson|safe if geojson else 'null' }};
+    const existingEdits = {{ edits|safe if edits else '{}' }};
+    let map = null;
+    let selectedLayer = null;
+    let selectedFeature = null;
+    const layers = [];
+    
+    // تابع استخراج نام محله (مشابه JavaScript در sidebar)
+    function getNeighborhoodName(props) {
+      const priorityFields = ['NAME_NEW', 'Name', 'NAME', 'name', 'mahalle', 'MAHALLE', 'Mahalle',
+                             'neighborhood', 'NEIGHBORHOOD', 'Neighborhood', 'neighbourhood', 
+                             'NEIGHBOURHOOD', 'Neighbourhood', 'محله', 'نام محله',
+                             'title', 'TITLE', 'Title', 'label', 'LABEL', 'Label'];
+      
+      for (const fieldName of priorityFields) {
+        if (props.hasOwnProperty(fieldName)) {
+          const value = props[fieldName];
+          if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
+          }
+        }
+      }
+      
+      for (const fieldName of priorityFields) {
+        for (const key in props) {
+          if (key.toLowerCase() === fieldName.toLowerCase()) {
+            const value = props[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              return String(value).trim();
+            }
+          }
+        }
+      }
+      
+      return 'نامشخص';
+    }
+    
+    // تابع ساخت feature_id
+    function getFeatureId(feature) {
+      const props = feature.properties || {};
+      return props.feature_id || props.id || props.gid || props.OBJECTID || 
+             (feature.geometry ? JSON.stringify(feature.geometry).substring(0, 50) : 'unknown');
+    }
+    
+    // مقداردهی اولیه نقشه
+    window.addEventListener('DOMContentLoaded', function() {
+      map = L.map('map').setView([32.0, 53.0], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      
+      if (geojsonData && geojsonData.features) {
+        const geoJsonLayer = L.geoJSON(geojsonData, {
+          style: function() {
+            return { color: '#111', weight: 2, fillOpacity: 0.1, zIndex: 100 };
+          },
+          onEachFeature: function(feature, layer) {
+            const props = feature.properties || {};
+            const name = getNeighborhoodName(props);
+            
+            layer.on('click', function() {
+              // حذف highlight قبلی
+              if (selectedLayer) {
+                selectedLayer.setStyle({ color: '#111', weight: 2, fillOpacity: 0.1 });
+              }
+              
+              // highlight محله انتخاب شده
+              layer.setStyle({ color: '#ff0000', weight: 4, fillOpacity: 0.3 });
+              selectedLayer = layer;
+              selectedFeature = feature;
+              
+              // نمایش اطلاعات محله
+              const featureId = getFeatureId(feature);
+              const originalName = getNeighborhoodName(props);
+              
+              document.getElementById('selectedName').textContent = originalName;
+              document.getElementById('selectedInfo').textContent = `شناسه: ${featureId}`;
+              document.getElementById('selectedNeighborhood').style.display = 'block';
+              
+              // بارگذاری ویرایش‌های موجود
+              const editKey = featureId + '_' + originalName;
+              let currentEdits = {};
+              if (existingEdits[editKey]) {
+                currentEdits = existingEdits[editKey].edits || {};
+              }
+              
+              // پر کردن فرم
+              document.getElementById('editFeatureId').value = featureId;
+              document.getElementById('editOriginalName').value = originalName;
+              document.getElementById('editName').value = currentEdits.name || originalName;
+              document.getElementById('editEnglishName').value = currentEdits.english_name || props.english_name || props.name_en || '';
+              document.getElementById('editDistrict').value = currentEdits.district || props.district || props.region || '';
+              document.getElementById('editCity').value = currentEdits.city || props.city || '';
+              document.getElementById('editPopulation').value = currentEdits.population || props.population || props.pop || '';
+              document.getElementById('editArea').value = currentEdits.area || props.area || '';
+              
+              // نمایش فرم
+              document.getElementById('editForm').classList.add('active');
+              
+              // زوم به محله
+              if (layer.getBounds) {
+                map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 16 });
+              }
+            });
+          }
+        }).addTo(map);
+        
+        // تنظیم view برای نمایش تمام محلات
+        setTimeout(() => {
+          if (geoJsonLayer.getBounds) {
+            map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
+          }
+        }, 100);
+      }
+    });
+    
+    // مدیریت فرم
+    document.getElementById('neighborhoodEditForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const featureId = document.getElementById('editFeatureId').value;
+      const originalName = document.getElementById('editOriginalName').value;
+      const edits = {
+        name: document.getElementById('editName').value.trim(),
+        english_name: document.getElementById('editEnglishName').value.trim(),
+        district: document.getElementById('editDistrict').value.trim(),
+        city: document.getElementById('editCity').value.trim(),
+        population: document.getElementById('editPopulation').value.trim(),
+        area: document.getElementById('editArea').value.trim()
+      };
+      
+      try {
+        const response = await fetch('/admin/neighborhoods/edit/{{ map_id }}/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            feature_id: featureId,
+            original_name: originalName,
+            edits: edits
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert('✓ ' + result.message);
+          window.location.reload();
+        } else {
+          alert('✗ ' + (result.error || 'خطا در ذخیره'));
+        }
+      } catch (error) {
+        alert('✗ خطا در ذخیره: ' + error.message);
+      }
+    });
+    
+    function cancelEdit() {
+      document.getElementById('editForm').classList.remove('active');
+      document.getElementById('selectedNeighborhood').style.display = 'none';
+      if (selectedLayer) {
+        selectedLayer.setStyle({ color: '#111', weight: 2, fillOpacity: 0.1 });
+        selectedLayer = null;
+      }
+    }
+  </script>
+</body>
+</html>
+"""
 
 
 @app.route("/admin/users", methods=["GET"])
