@@ -625,8 +625,10 @@ def save_neighborhood_edits(map_id: str, edits: Dict[str, Dict]) -> None:
 
 
 def get_neighborhood_edit_key(feature_id: str, original_name: str) -> str:
-    """ساخت کلید منحصر به فرد برای ویرایش یک محله"""
-    key_string = f"{feature_id}_{original_name}"
+    """ساخت کلید منحصر به فرد برای ویرایش یک محله
+    توجه: برای جلوگیری از مغایرت نام (بعد از ویرایش نام)، فقط feature_id را مبنا قرار می‌دهیم.
+    """
+    key_string = f"{feature_id}"
     return hashlib.md5(key_string.encode('utf-8')).hexdigest()
 
 
@@ -2759,7 +2761,8 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
               // جستجو در تمام ویرایش‌های موجود
               for (const key in existingEdits) {
                 const editData = existingEdits[key];
-                if (editData && editData.feature_id === featureId && editData.original_name === originalName) {
+                if (!editData) continue;
+                if (editData.feature_id === featureId) { // تطبیق فقط بر اساس feature_id
                   currentEdits = editData.edits || {};
                   break;
                 }
@@ -3388,8 +3391,8 @@ def admin_save_neighborhood_edit(map_id: str):
         original_name = data.get("original_name", "").strip()
         edits = data.get("edits", {})
         
-        if not feature_id or not original_name:
-            return jsonify({"success": False, "error": "شناسه محله یا نام اصلی مشخص نشد"}), 400
+        if not feature_id:
+            return jsonify({"success": False, "error": "شناسه محله مشخص نشد"}), 400
         
         # بارگذاری ویرایش‌های موجود
         all_edits = load_neighborhood_edits(map_id)
