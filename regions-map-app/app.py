@@ -641,19 +641,23 @@ def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original
     if not edits:
         return props
     
-    edit_key = get_neighborhood_edit_key(feature_id, original_name)
-    
     # جستجو در تمام ویرایش‌ها برای پیدا کردن ویرایش مربوط به این feature_id
     edit_data = None
     for key, edit_item in edits.items():
-        if isinstance(edit_item, dict) and edit_item.get("feature_id") == feature_id:
-            edit_data = edit_item.get("edits", {})
-            break
+        if isinstance(edit_item, dict):
+            # مقایسه feature_id (می‌تواند string یا number باشد)
+            item_feature_id = str(edit_item.get("feature_id", "")).strip()
+            current_feature_id = str(feature_id).strip()
+            if item_feature_id and current_feature_id and item_feature_id == current_feature_id:
+                edit_data = edit_item.get("edits", {})
+                break
     
     # اگر ویرایش پیدا نشد، از کلید مستقیم استفاده کن
-    if edit_data is None and edit_key in edits:
-        edit_data_root = edits[edit_key]
-        edit_data = edit_data_root.get("edits", edit_data_root) if isinstance(edit_data_root, dict) else {}
+    if edit_data is None:
+        edit_key = get_neighborhood_edit_key(feature_id, original_name)
+        if edit_key in edits:
+            edit_data_root = edits[edit_key]
+            edit_data = edit_data_root.get("edits", edit_data_root) if isinstance(edit_data_root, dict) else {}
     
     if edit_data:
         # اعمال تغییرات - اضافه کردن به properties (فقط اگر مقدار وجود داشته باشد)
@@ -2932,7 +2936,9 @@ def index():
                     if feature_id:
                         props["feature_id"] = feature_id
                     original_name = props.get('NAME_NEW') or props.get('Name') or props.get('name') or 'نامشخص'
+                    # اعمال ویرایش‌ها - باید قبل از JSON serialization انجام شود
                     props = apply_neighborhood_edits(props, selected_map_id, feature_id, original_name)
+                    # به‌روزرسانی properties در feature
                     feature["properties"] = props
             # اتصال لینک‌های توت‌اپ (با استفاده از لینک‌های ذخیره شده)
             if geojson:
@@ -3466,9 +3472,15 @@ def admin_save_neighborhood_edit(map_id: str):
         
         save_neighborhood_edits(map_id, all_edits)
         
+        # بررسی که ویرایش درست ذخیره شد
+        saved_edits = load_neighborhood_edits(map_id)
+        
         return jsonify({
             "success": True,
-            "message": "ویرایش‌ها با موفقیت ذخیره شد"
+            "message": "ویرایش‌ها با موفقیت ذخیره شد",
+            "feature_id": feature_id,
+            "edit_key": edit_key,
+            "edits_saved": edit_key in saved_edits
         })
     except Exception as e:
         import traceback
