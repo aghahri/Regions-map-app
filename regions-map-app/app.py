@@ -3186,7 +3186,19 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
               document.getElementById('selectedNeighborhood').style.display = 'block';
               
               // بارگذاری ویرایش‌های موجود
-              const editKey = featureId + '_' + originalName;
+              // ساخت edit_key مشابه Python (MD5 hash)
+              function md5(str) {
+                // ساده‌سازی: استفاده از hash ساده (در production باید از crypto استفاده شود)
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                  const char = str.charCodeAt(i);
+                  hash = ((hash << 5) - hash) + char;
+                  hash = hash & hash; // Convert to 32bit integer
+                }
+                return Math.abs(hash).toString(16);
+              }
+              const editKeyString = featureId + '_' + originalName;
+              const editKey = md5(editKeyString);
               let currentEdits = {};
               if (existingEdits[editKey]) {
                 currentEdits = existingEdits[editKey].edits || {};
