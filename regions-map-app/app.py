@@ -636,7 +636,9 @@ def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original
     edit_key = get_neighborhood_edit_key(feature_id, original_name)
     
     if edit_key in edits:
-        edit_data = edits[edit_key]
+        # داده ذخیره شده شامل کلید edits است؛ اگر نبود، خود edit_data را استفاده می‌کنیم
+        edit_data_root = edits[edit_key]
+        edit_data = edit_data_root.get("edits", edit_data_root) if isinstance(edit_data_root, dict) else {}
         # اعمال تغییرات - اضافه کردن به properties
         if "name" in edit_data:
             props["NAME_NEW"] = edit_data["name"]  # استفاده از NAME_NEW برای اولویت
