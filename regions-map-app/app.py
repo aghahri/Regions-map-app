@@ -634,6 +634,9 @@ def get_neighborhood_edit_key(feature_id: str, original_name: str) -> str:
 
 def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original_name: str) -> Dict:
     """اعمال ویرایش‌های محله به properties"""
+    if not feature_id:
+        return props
+    
     edits = load_neighborhood_edits(map_id)
     edit_key = get_neighborhood_edit_key(feature_id, original_name)
     
@@ -641,19 +644,20 @@ def apply_neighborhood_edits(props: Dict, map_id: str, feature_id: str, original
         # داده ذخیره شده شامل کلید edits است؛ اگر نبود، خود edit_data را استفاده می‌کنیم
         edit_data_root = edits[edit_key]
         edit_data = edit_data_root.get("edits", edit_data_root) if isinstance(edit_data_root, dict) else {}
-        # اعمال تغییرات - اضافه کردن به properties
-        if "name" in edit_data:
-            props["NAME_NEW"] = edit_data["name"]  # استفاده از NAME_NEW برای اولویت
-        if "population" in edit_data:
-            props["population"] = edit_data["population"]
-        if "area" in edit_data:
-            props["area"] = edit_data["area"]
-        if "district" in edit_data:
-            props["district"] = edit_data["district"]
-        if "city" in edit_data:
-            props["city"] = edit_data["city"]
-        if "english_name" in edit_data:
-            props["english_name"] = edit_data["english_name"]
+        
+        # اعمال تغییرات - اضافه کردن به properties (فقط اگر مقدار وجود داشته باشد)
+        if "name" in edit_data and edit_data["name"]:
+            props["NAME_NEW"] = str(edit_data["name"]).strip()  # استفاده از NAME_NEW برای اولویت
+        if "population" in edit_data and edit_data["population"]:
+            props["population"] = str(edit_data["population"]).strip()
+        if "area" in edit_data and edit_data["area"]:
+            props["area"] = str(edit_data["area"]).strip()
+        if "district" in edit_data and edit_data["district"]:
+            props["district"] = str(edit_data["district"]).strip()
+        if "city" in edit_data and edit_data["city"]:
+            props["city"] = str(edit_data["city"]).strip()
+        if "english_name" in edit_data and edit_data["english_name"]:
+            props["english_name"] = str(edit_data["english_name"]).strip()
     
     return props
 
@@ -708,9 +712,26 @@ def save_feature_data(feature_id: str, geojson: Dict, summary: Dict, original_fi
 
 
 def get_feature_identifier(feature: Dict) -> Optional[str]:
-    """ایجاد شناسه منحصر به فرد برای یک feature"""
+    """ایجاد شناسه منحصر به فرد برای یک feature
+    اولویت با فیلدهای ID ثابت، سپس geometry hash برای ثبات
+    """
     props = feature.get("properties", {})
-    # استفاده از ترکیب فیلدهای مختلف برای شناسه
+    
+    # اولویت اول: فیلدهای ID ثابت که تغییر نمی‌کنند
+    for id_field in ['feature_id', 'id', 'ID', 'gid', 'GID', 'OBJECTID', 'objectid']:
+        if id_field in props:
+            value = props[id_field]
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    
+    # اولویت دوم: ساخت hash از geometry (ثابت است و تغییر نمی‌کند)
+    geometry = feature.get("geometry")
+    if geometry:
+        import json
+        geometry_str = json.dumps(geometry, sort_keys=True)
+        return hashlib.md5(geometry_str.encode('utf-8')).hexdigest()
+    
+    # اولویت سوم: ترکیب فیلدهای مختلف (در صورت نبود geometry)
     keywords = ['name', 'mahalle', 'district', 'region']
     parts = []
     for key in props:
@@ -721,6 +742,7 @@ def get_feature_identifier(feature: Dict) -> Optional[str]:
                 parts.append(f"{key}:{value}")
     if parts:
         return "|".join(parts)
+    
     return None
 
 
@@ -1971,32 +1993,32 @@ INDEX_TEMPLATE = """
       
       // اولویت اول: فیلدهای ویرایش شده (exact match)
       // منطقه: اول exact match برای district، سپس جستجوی کلمات کلیدی
-      let district = props.district || null;
-      if (!district || String(district).trim() === '') {
+      let district = (props.district && String(props.district).trim() !== '') ? String(props.district).trim() : null;
+      if (!district) {
         district = getFieldValueByKeywords(props, ['منطقه', 'region', 'regio', 'place', 'district']);
       }
       
       // شهر: اول exact match برای city، سپس جستجوی فیلدهای دیگر
-      let city = props.city || null;
-      if (!city || String(city).trim() === '') {
+      let city = (props.city && String(props.city).trim() !== '') ? String(props.city).trim() : null;
+      if (!city) {
         city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY', 'شهر']);
       }
       
       // نام انگلیسی: اول exact match برای english_name، سپس جستجوی فیلدهای دیگر
-      let englishName = props.english_name || null;
-      if (!englishName || String(englishName).trim() === '') {
+      let englishName = (props.english_name && String(props.english_name).trim() !== '') ? String(props.english_name).trim() : null;
+      if (!englishName) {
         englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN', 'Name_EN']);
       }
       
       // مساحت: اول exact match برای area، سپس جستجوی کلمات کلیدی
-      let area = props.area || null;
-      if (!area || String(area).trim() === '') {
+      let area = (props.area && String(props.area).trim() !== '') ? String(props.area).trim() : null;
+      if (!area) {
         area = getFieldValueByKeywords(props, ['مساحت', 'area']);
       }
       
       // جمعیت: اول exact match برای population، سپس جستجوی کلمات کلیدی
-      let population = props.population || null;
-      if (!population || String(population).trim() === '') {
+      let population = (props.population && String(props.population).trim() !== '') ? String(props.population).trim() : null;
+      if (!population) {
         population = getFieldValueByKeywords(props, ['جمعیت', 'pop', 'population']);
       }
       
@@ -2687,13 +2709,28 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
     // تابع ساخت feature_id (مشابه get_feature_identifier در Python)
     function getFeatureId(feature) {
       const props = feature.properties || {};
-      // اولویت اول: فیلدهای شناسه
+      
+      // اولویت اول: فیلدهای ID ثابت که تغییر نمی‌کنند
       if (props.feature_id) return props.feature_id;
       if (props.id) return String(props.id);
       if (props.gid) return String(props.gid);
       if (props.OBJECTID) return String(props.OBJECTID);
       
-      // ساخت شناسه از ترکیب فیلدهای نام (مشابه Python: "key:value|key:value")
+      // اولویت دوم: ساخت hash از geometry (ثابت است و تغییر نمی‌کند)
+      if (feature.geometry) {
+        // استفاده از یک hash ساده برای geometry
+        const geometryStr = JSON.stringify(feature.geometry);
+        // MD5 hash (ساده شده - در production از crypto استفاده کنید)
+        let hash = 0;
+        for (let i = 0; i < geometryStr.length; i++) {
+          const char = geometryStr.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(36); // تبدیل به base36 برای کوتاه‌تر شدن
+      }
+      
+      // اولویت سوم: ساخت شناسه از ترکیب فیلدهای نام
       const keywords = ['name', 'mahalle', 'district', 'region'];
       const parts = [];
       for (const key in props) {
@@ -2708,11 +2745,6 @@ EDIT_NEIGHBORHOODS_TEMPLATE = """
       
       if (parts.length > 0) {
         return parts.join('|');
-      }
-      
-      // در نهایت از geometry استفاده می‌کنیم
-      if (feature.geometry) {
-        return JSON.stringify(feature.geometry).substring(0, 50);
       }
       
       return 'unknown';
@@ -2875,6 +2907,9 @@ def index():
                 for feature in geojson.get("features", []):
                     props = feature.get("properties", {})
                     feature_id = get_feature_identifier(feature)
+                    # ذخیره feature_id در properties برای استفاده بعدی
+                    if feature_id:
+                        props["feature_id"] = feature_id
                     original_name = props.get('NAME_NEW') or props.get('Name') or props.get('name') or 'نامشخص'
                     props = apply_neighborhood_edits(props, selected_map_id, feature_id, original_name)
                     feature["properties"] = props
