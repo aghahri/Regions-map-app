@@ -1966,14 +1966,38 @@ INDEX_TEMPLATE = """
     function openSidebar(props) {
       // استخراج هوشمند نام محله - اولویت با فیلدهای رایج
       const neighborhoodName = getNeighborhoodName(props);
-      // جستجوی منطقه: منطقه، region، regio، place یا district
-      const district = getFieldValueByKeywords(props, ['منطقه', 'region', 'regio', 'place', 'district']);
-      const city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY', 'شهر']);
-      const englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN', 'Name_EN']);
-      // جستجوی مساحت: مساحت، area یا ترکیبی از این کلمات
-      const area = getFieldValueByKeywords(props, ['مساحت', 'area']);
-      // جستجوی جمعیت: جمعیت، pop یا population
-      const population = getFieldValueByKeywords(props, ['جمعیت', 'pop', 'population']);
+      
+      // اولویت اول: فیلدهای ویرایش شده (exact match)
+      // منطقه: اول exact match برای district، سپس جستجوی کلمات کلیدی
+      let district = props.district || null;
+      if (!district || String(district).trim() === '') {
+        district = getFieldValueByKeywords(props, ['منطقه', 'region', 'regio', 'place', 'district']);
+      }
+      
+      // شهر: اول exact match برای city، سپس جستجوی فیلدهای دیگر
+      let city = props.city || null;
+      if (!city || String(city).trim() === '') {
+        city = getFieldValue(props, ['city', 'shahr', 'City', 'CITY', 'شهر']);
+      }
+      
+      // نام انگلیسی: اول exact match برای english_name، سپس جستجوی فیلدهای دیگر
+      let englishName = props.english_name || null;
+      if (!englishName || String(englishName).trim() === '') {
+        englishName = getFieldValue(props, ['english_name', 'name_en', 'EnglishName', 'NAME_EN', 'Name_EN']);
+      }
+      
+      // مساحت: اول exact match برای area، سپس جستجوی کلمات کلیدی
+      let area = props.area || null;
+      if (!area || String(area).trim() === '') {
+        area = getFieldValueByKeywords(props, ['مساحت', 'area']);
+      }
+      
+      // جمعیت: اول exact match برای population، سپس جستجوی کلمات کلیدی
+      let population = props.population || null;
+      if (!population || String(population).trim() === '') {
+        population = getFieldValueByKeywords(props, ['جمعیت', 'pop', 'population']);
+      }
+      
       const tootappUrl = props.tootapp_url || 'https://tootapp.ir/join/';
       
       // پر کردن sidebar
