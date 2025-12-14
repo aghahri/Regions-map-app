@@ -539,14 +539,22 @@ def get_neighborhood_logo_path(map_id: str, neighborhood_name: str) -> Path:
 
 
 def load_neighborhood_logo(map_id: str, neighborhood_name: str) -> Optional[str]:
-    """بارگذاری نام فایل لوگوی محله - با جستجوی case-insensitive"""
+    """بارگذاری نام فایل لوگوی محله - با جستجوی case-insensitive و partial match"""
+    if not neighborhood_name or not neighborhood_name.strip():
+        return None
+    
+    neighborhood_name_clean = neighborhood_name.strip()
+    neighborhood_name_normalized = neighborhood_name_clean.lower()
+    
     # ابتدا جستجوی exact match
-    logo_file = get_neighborhood_logo_path(map_id, neighborhood_name)
+    logo_file = get_neighborhood_logo_path(map_id, neighborhood_name_clean)
     if logo_file.exists():
         try:
             with open(logo_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data.get("logo_filename")
+                logo_filename = data.get("logo_filename")
+                if logo_filename:
+                    return logo_filename
         except Exception:
             pass
     
@@ -554,15 +562,35 @@ def load_neighborhood_logo(map_id: str, neighborhood_name: str) -> Optional[str]
     if not LOGO_DIR.exists():
         return None
     
-    neighborhood_name_normalized = neighborhood_name.strip().lower()
+    # جستجوی exact match (case-insensitive)
     for logo_file in LOGO_DIR.glob("*.json"):
         try:
             with open(logo_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if data.get("map_id") == map_id:
-                    saved_name = data.get("neighborhood_name", "").strip().lower()
-                    if saved_name == neighborhood_name_normalized:
-                        return data.get("logo_filename")
+                    saved_name = data.get("neighborhood_name", "").strip()
+                    saved_name_normalized = saved_name.lower()
+                    if saved_name_normalized == neighborhood_name_normalized:
+                        logo_filename = data.get("logo_filename")
+                        if logo_filename:
+                            return logo_filename
+        except Exception:
+            continue
+    
+    # اگر هنوز پیدا نشد، جستجوی partial match (نام درخواستی بخشی از نام ذخیره شده یا برعکس)
+    for logo_file in LOGO_DIR.glob("*.json"):
+        try:
+            with open(logo_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("map_id") == map_id:
+                    saved_name = data.get("neighborhood_name", "").strip()
+                    saved_name_normalized = saved_name.lower()
+                    # بررسی partial match
+                    if (neighborhood_name_normalized in saved_name_normalized or 
+                        saved_name_normalized in neighborhood_name_normalized):
+                        logo_filename = data.get("logo_filename")
+                        if logo_filename:
+                            return logo_filename
         except Exception:
             continue
     
@@ -2070,20 +2098,33 @@ INDEX_TEMPLATE = """
       // بارگذاری لوگو از سرور
       const selectedMapId = '{{ selected_map_id if selected_map_id else "" }}';
       const logoContainer = document.querySelector('.sidebar-logo');
+      
+      // دیباگ: نمایش اطلاعات
+      console.log('Loading logo:', { selectedMapId, neighborhoodName });
+      
       if (selectedMapId && neighborhoodName) {
         fetch(`/api/neighborhood-logo?map_id=${selectedMapId}&neighborhood_name=${encodeURIComponent(neighborhoodName)}`)
           .then(response => response.json())
           .then(data => {
+            console.log('Logo API response:', data);
             if (data.success && data.logo_filename) {
-              logoContainer.innerHTML = `<img src="/uploads/logos/${data.logo_filename}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px;" />`;
+              const imgUrl = `/uploads/logos/${data.logo_filename}`;
+              console.log('Loading logo image from:', imgUrl);
+              logoContainer.innerHTML = `<img src="${imgUrl}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px;" onerror="console.error('Failed to load logo image:', this.src); this.parentElement.innerHTML='<div class=\\'sidebar-logo-icon\\'>📍</div>';" />`;
             } else {
+              console.warn('Logo not found:', data.message || 'Unknown error', data);
+              if (data.available_logos && data.available_logos.length > 0) {
+                console.log('Available logos for this map:', data.available_logos);
+              }
               logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
             }
           })
-          .catch(() => {
+          .catch(error => {
+            console.error('Error fetching logo:', error);
             logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
           });
       } else {
+        console.warn('Missing map_id or neighborhoodName:', { selectedMapId, neighborhoodName });
         logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
       }
       
@@ -3384,10 +3425,23 @@ def api_get_neighborhood_logo():
     try:
         logo_filename = load_neighborhood_logo(map_id, neighborhood_name)
         if logo_filename:
-            return jsonify({
-                "success": True,
-                "logo_filename": logo_filename
-            })
+            # بررسی وجود فایل
+            logo_path = LOGO_DIR / logo_filename
+            if logo_path.exists() and logo_path.is_file():
+                return jsonify({
+                    "success": True,
+                    "logo_filename": logo_filename
+                })
+            else:
+                # فایل JSON وجود دارد اما فایل عکس نیست
+                all_logos = get_all_neighborhood_logos(map_id)
+                return jsonify({
+                    "success": False,
+                    "message": f"فایل لوگو پیدا نشد: {logo_filename}",
+                    "requested_name": neighborhood_name,
+                    "logo_filename_in_db": logo_filename,
+                    "available_logos": list(all_logos.keys()) if all_logos else []
+                })
         else:
             # اگر پیدا نشد، لیست تمام لوگوهای موجود را برای debug برگردان
             all_logos = get_all_neighborhood_logos(map_id)
@@ -3395,7 +3449,9 @@ def api_get_neighborhood_logo():
                 "success": False,
                 "message": "لوگویی برای این محله یافت نشد",
                 "requested_name": neighborhood_name,
-                "available_logos": list(all_logos.keys()) if all_logos else []
+                "requested_map_id": map_id,
+                "available_logos": list(all_logos.keys()) if all_logos else [],
+                "available_logos_count": len(all_logos) if all_logos else 0
             })
     except Exception as e:
         import traceback
