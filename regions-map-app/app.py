@@ -3373,8 +3373,11 @@ def admin_upload_neighborhood_logo(map_id: str):
         # ساخت نام فایل منحصر به فرد
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         key = get_neighborhood_key(map_id, neighborhood_name_normalized)
-        safe_filename = secure_filename(filename)
-        logo_filename = f"{key}_{timestamp}_{safe_filename}"
+        # استخراج نام فایل بدون پسوند و امن کردن آن
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        safe_base_name = secure_filename(base_name)
+        # اضافه کردن پسوند به صورت جداگانه برای اطمینان از حفظ آن
+        logo_filename = f"{key}_{timestamp}_{safe_base_name}.{ext}"
         logo_path = LOGO_DIR / logo_filename
         
         # حذف لوگوی قبلی اگر وجود داشته باشد (با نام نرمال‌سازی شده)
@@ -3410,6 +3413,30 @@ def serve_logo(filename: str):
     if logo_path.exists() and logo_path.is_file():
         from flask import send_from_directory
         return send_from_directory(str(LOGO_DIR), filename)
+    
+    # اگر فایل پیدا نشد، برای فایل‌های قدیمی که پسوند ندارند، جستجو کنیم
+    # بعضی فایل‌های قدیمی ممکن است پسوند نداشته باشند یا پسوندشان تغییر کرده باشد
+    if '_' in filename:
+        # استخراج بخش اصلی نام فایل (قبل از آخرین _)
+        parts = filename.rsplit('_', 1)
+        if len(parts) == 2:
+            base_part = parts[0]
+            # جستجوی فایل‌های مشابه با پسوندهای مختلف
+            for ext in ALLOWED_IMAGE_EXTENSIONS:
+                possible_filename = f"{base_part}.{ext}"
+                possible_path = LOGO_DIR / possible_filename
+                if possible_path.exists() and possible_path.is_file():
+                    from flask import send_from_directory
+                    return send_from_directory(str(LOGO_DIR), possible_filename)
+            
+            # همچنین جستجو برای فایل‌هایی که پسوند در نامشان است (مثل _jpg)
+            for ext in ALLOWED_IMAGE_EXTENSIONS:
+                possible_filename = f"{filename}.{ext}"
+                possible_path = LOGO_DIR / possible_filename
+                if possible_path.exists() and possible_path.is_file():
+                    from flask import send_from_directory
+                    return send_from_directory(str(LOGO_DIR), possible_filename)
+    
     return "فایل پیدا نشد", 404
 
 
