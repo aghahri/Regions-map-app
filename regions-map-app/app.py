@@ -3408,14 +3408,38 @@ def admin_upload_neighborhood_logo(map_id: str):
 
 @app.route("/uploads/logos/<filename>")
 def serve_logo(filename: str):
-    """سرو کردن فایل‌های لوگو"""
+    """سرو کردن فایل‌های لوگو - با پشتیبانی از فایل‌های قدیمی"""
+    from flask import send_from_directory
+    
     logo_path = LOGO_DIR / filename
     if logo_path.exists() and logo_path.is_file():
-        from flask import send_from_directory
         return send_from_directory(str(LOGO_DIR), filename)
     
     # اگر فایل پیدا نشد، برای فایل‌های قدیمی که پسوند ندارند، جستجو کنیم
     # بعضی فایل‌های قدیمی ممکن است پسوند نداشته باشند یا پسوندشان تغییر کرده باشد
+    
+    # 1. جستجو برای فایل‌هایی که پسوند در انتهای نامشان است (مثل _jpg بدون نقطه)
+    if '_' in filename:
+        # اگر نام فایل به _jpg یا _png و غیره ختم می‌شود
+        for ext in ALLOWED_IMAGE_EXTENSIONS:
+            if filename.endswith(f'_{ext}'):
+                # تبدیل _jpg به .jpg
+                base_name = filename.rsplit(f'_{ext}', 1)[0]
+                possible_filename = f"{base_name}.{ext}"
+                possible_path = LOGO_DIR / possible_filename
+                if possible_path.exists() and possible_path.is_file():
+                    return send_from_directory(str(LOGO_DIR), possible_filename)
+    
+    # 2. جستجو برای فایل‌هایی که پسوند ندارند (فایل قدیمی)
+    if '.' not in filename:
+        # جستجو با اضافه کردن پسوندهای مختلف
+        for ext in ALLOWED_IMAGE_EXTENSIONS:
+            possible_filename = f"{filename}.{ext}"
+            possible_path = LOGO_DIR / possible_filename
+            if possible_path.exists() and possible_path.is_file():
+                return send_from_directory(str(LOGO_DIR), possible_filename)
+    
+    # 3. جستجو برای فایل‌هایی که بخشی از نامشان مشابه است
     if '_' in filename:
         # استخراج بخش اصلی نام فایل (قبل از آخرین _)
         parts = filename.rsplit('_', 1)
@@ -3426,7 +3450,6 @@ def serve_logo(filename: str):
                 possible_filename = f"{base_part}.{ext}"
                 possible_path = LOGO_DIR / possible_filename
                 if possible_path.exists() and possible_path.is_file():
-                    from flask import send_from_directory
                     return send_from_directory(str(LOGO_DIR), possible_filename)
             
             # همچنین جستجو برای فایل‌هایی که پسوند در نامشان است (مثل _jpg)
@@ -3434,8 +3457,15 @@ def serve_logo(filename: str):
                 possible_filename = f"{filename}.{ext}"
                 possible_path = LOGO_DIR / possible_filename
                 if possible_path.exists() and possible_path.is_file():
-                    from flask import send_from_directory
                     return send_from_directory(str(LOGO_DIR), possible_filename)
+    
+    # 4. جستجوی فایل‌هایی که با نام فایل شروع می‌شوند (برای فایل‌های قدیمی)
+    if LOGO_DIR.exists():
+        for ext in ALLOWED_IMAGE_EXTENSIONS:
+            # جستجو برای فایل‌هایی که با filename شروع می‌شوند
+            for logo_file in LOGO_DIR.glob(f"{filename}*"):
+                if logo_file.is_file() and logo_file.suffix.lower() in [f'.{e}' for e in ALLOWED_IMAGE_EXTENSIONS]:
+                    return send_from_directory(str(LOGO_DIR), logo_file.name)
     
     return "فایل پیدا نشد", 404
 
@@ -3452,7 +3482,7 @@ def api_get_neighborhood_logo():
     try:
         logo_filename = load_neighborhood_logo(map_id, neighborhood_name)
         if logo_filename:
-            # بررسی وجود فایل
+            # بررسی وجود فایل (با پسوند یا بدون پسوند)
             logo_path = LOGO_DIR / logo_filename
             if logo_path.exists() and logo_path.is_file():
                 return jsonify({
@@ -3460,15 +3490,65 @@ def api_get_neighborhood_logo():
                     "logo_filename": logo_filename
                 })
             else:
-                # فایل JSON وجود دارد اما فایل عکس نیست
-                all_logos = get_all_neighborhood_logos(map_id)
-                return jsonify({
-                    "success": False,
-                    "message": f"فایل لوگو پیدا نشد: {logo_filename}",
-                    "requested_name": neighborhood_name,
-                    "logo_filename_in_db": logo_filename,
-                    "available_logos": list(all_logos.keys()) if all_logos else []
-                })
+                # فایل JSON وجود دارد اما فایل عکس نیست - جستجو برای فایل‌های قدیمی
+                # جستجو برای فایل‌هایی که با این نام شروع می‌شوند
+                found_file = None
+                if LOGO_DIR.exists():
+                    # اگر نام فایل پسوند ندارد، جستجو با پسوندهای مختلف
+                    if '.' not in logo_filename:
+                        for ext in ALLOWED_IMAGE_EXTENSIONS:
+                            possible_path = LOGO_DIR / f"{logo_filename}.{ext}"
+                            if possible_path.exists() and possible_path.is_file():
+                                found_file = possible_path.name
+                                break
+                    # اگر نام فایل به _jpg ختم می‌شود، تبدیل به .jpg
+                    elif logo_filename.endswith('_jpg') or logo_filename.endswith('_jpeg') or logo_filename.endswith('_png'):
+                        for ext in ALLOWED_IMAGE_EXTENSIONS:
+                            if logo_filename.endswith(f'_{ext}'):
+                                base_name = logo_filename.rsplit(f'_{ext}', 1)[0]
+                                possible_path = LOGO_DIR / f"{base_name}.{ext}"
+                                if possible_path.exists() and possible_path.is_file():
+                                    found_file = possible_path.name
+                                    break
+                    # جستجو برای فایل‌هایی که با این نام شروع می‌شوند
+                    if not found_file:
+                        for logo_file in LOGO_DIR.glob(f"{logo_filename}*"):
+                            if logo_file.is_file() and logo_file.suffix.lower() in [f'.{e}' for e in ALLOWED_IMAGE_EXTENSIONS]:
+                                found_file = logo_file.name
+                                break
+                
+                if found_file:
+                    # به‌روزرسانی JSON با نام فایل صحیح
+                    try:
+                        # پیدا کردن فایل JSON مربوطه و به‌روزرسانی آن
+                        for json_file in LOGO_DIR.glob("*.json"):
+                            try:
+                                with open(json_file, 'r', encoding='utf-8') as f:
+                                    data = json.load(f)
+                                if data.get("logo_filename") == logo_filename and data.get("map_id") == map_id:
+                                    data["logo_filename"] = found_file
+                                    with open(json_file, 'w', encoding='utf-8') as f:
+                                        json.dump(data, f, ensure_ascii=False, indent=2)
+                                    break
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+                    
+                    return jsonify({
+                        "success": True,
+                        "logo_filename": found_file
+                    })
+                else:
+                    # فایل JSON وجود دارد اما فایل عکس نیست
+                    all_logos = get_all_neighborhood_logos(map_id)
+                    return jsonify({
+                        "success": False,
+                        "message": f"فایل لوگو پیدا نشد: {logo_filename}",
+                        "requested_name": neighborhood_name,
+                        "logo_filename_in_db": logo_filename,
+                        "available_logos": list(all_logos.keys()) if all_logos else []
+                    })
         else:
             # اگر پیدا نشد، لیست تمام لوگوهای موجود را برای debug برگردان
             all_logos = get_all_neighborhood_logos(map_id)

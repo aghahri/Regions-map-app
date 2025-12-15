@@ -49,6 +49,13 @@ def fix_logo_filenames():
     
     fixed_count = 0
     error_count = 0
+    not_found_count = 0
+    
+    # لیست تمام فایل‌های عکس موجود
+    existing_image_files = {}
+    for ext in ALLOWED_IMAGE_EXTENSIONS:
+        for img_file in LOGO_DIR.glob(f"*.{ext}"):
+            existing_image_files[img_file.name] = img_file
     
     # بررسی تمام فایل‌های JSON
     for json_file in LOGO_DIR.glob("*.json"):
@@ -62,8 +69,35 @@ def fix_logo_filenames():
             
             logo_path = LOGO_DIR / logo_filename
             
+            # بررسی وجود فایل
+            file_exists = logo_path.exists() and logo_path.is_file()
+            
+            # اگر فایل وجود ندارد، جستجو برای فایل‌های مشابه
+            if not file_exists:
+                # جستجو برای فایل‌هایی که با این نام شروع می‌شوند
+                found_file = None
+                for img_name, img_path in existing_image_files.items():
+                    # اگر نام فایل بدون پسوند با نام موجود شروع می‌شود
+                    base_name = logo_filename.rsplit('.', 1)[0] if '.' in logo_filename else logo_filename
+                    if img_name.startswith(base_name) or base_name in img_name:
+                        found_file = img_name
+                        break
+                
+                if found_file:
+                    print(f"✅ فایل مشابه پیدا شد: {logo_filename} → {found_file}")
+                    # به‌روزرسانی JSON
+                    data["logo_filename"] = found_file
+                    with open(json_file, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    fixed_count += 1
+                    continue
+                else:
+                    print(f"⚠️  فایل لوگو پیدا نشد: {logo_filename}")
+                    not_found_count += 1
+                    continue
+            
             # اگر فایل وجود دارد و پسوند ندارد یا پسوند اشتباه دارد
-            if logo_path.exists() and logo_path.is_file():
+            if file_exists:
                 # بررسی پسوند
                 if '.' not in logo_filename or not any(logo_filename.lower().endswith(f'.{ext}') for ext in ALLOWED_IMAGE_EXTENSIONS):
                     print(f"⚠️  فایل بدون پسوند یا با پسوند اشتباه پیدا شد: {logo_filename}")
@@ -127,7 +161,10 @@ def fix_logo_filenames():
             print(f"❌ خطا در پردازش {json_file}: {e}")
             error_count += 1
     
-    print(f"\n✅ تمام! {fixed_count} فایل اصلاح شد، {error_count} خطا")
+    print(f"\n✅ تمام!")
+    print(f"   - {fixed_count} فایل اصلاح شد")
+    print(f"   - {not_found_count} فایل پیدا نشد")
+    print(f"   - {error_count} خطا")
 
 if __name__ == "__main__":
     fix_logo_filenames()
