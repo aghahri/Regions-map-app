@@ -1350,15 +1350,48 @@ MANAGE_LINKS_TEMPLATE = """
             
             if (logoPreviewDiv && result.logo_filename) {
               const imgUrl = '/uploads/logos/' + result.logo_filename;
+              const timestamp = Date.now();
               console.log('Setting logo image URL:', imgUrl);
-              logoPreviewDiv.innerHTML = `
-                <div style="margin-bottom: 0.5rem;">
-                  <img src="${imgUrl}?t=${Date.now()}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" onload="console.log('Logo image loaded successfully');" onerror="console.error('Failed to load logo image:', this.src); this.parentElement.parentElement.innerHTML='<div style=\\'font-size: 0.85rem; color: #d62828; margin-bottom: 0.5rem;\\'>خطا در نمایش لوگو. URL: ${imgUrl}</div>';" />
-                  <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
-                </div>
-              `;
+              
+              // ایجاد یک image element برای تست قبل از نمایش
+              const testImg = new Image();
+              testImg.onload = function() {
+                console.log('Logo image loaded successfully, updating preview');
+                logoPreviewDiv.innerHTML = `
+                  <div style="margin-bottom: 0.5rem;">
+                    <img src="${imgUrl}?t=${timestamp}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" />
+                    <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+                  </div>
+                `;
+              };
+              testImg.onerror = function() {
+                console.error('Failed to load logo image:', imgUrl);
+                // تلاش با URL بدون timestamp
+                const imgUrl2 = '/uploads/logos/' + result.logo_filename;
+                const testImg2 = new Image();
+                testImg2.onload = function() {
+                  logoPreviewDiv.innerHTML = `
+                    <div style="margin-bottom: 0.5rem;">
+                      <img src="${imgUrl2}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" />
+                      <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+                    </div>
+                  `;
+                };
+                testImg2.onerror = function() {
+                  logoPreviewDiv.innerHTML = `<div style="font-size: 0.85rem; color: #d62828; margin-bottom: 0.5rem;">خطا در نمایش لوگو. URL: ${imgUrl}<br>لطفاً صفحه را refresh کنید.</div>`;
+                };
+                testImg2.src = imgUrl2;
+              };
+              testImg.src = imgUrl + '?t=' + timestamp;
             } else {
               console.warn('Could not find logo_preview div or logo_filename:', { logoPreviewDiv, logo_filename: result.logo_filename });
+              // اگر div پیدا نشد، صفحه را reload کن
+              if (!logoPreviewDiv) {
+                console.log('logo_preview div not found, reloading page...');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              }
             }
             
             // پاک کردن فایل input
@@ -2187,7 +2220,28 @@ INDEX_TEMPLATE = """
             if (data.success && data.logo_filename) {
               const imgUrl = `/uploads/logos/${data.logo_filename}`;
               console.log('Loading logo image from:', imgUrl);
-              logoContainer.innerHTML = `<img src="${imgUrl}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px;" onerror="console.error('Failed to load logo image:', this.src); this.parentElement.innerHTML='<div class=\\'sidebar-logo-icon\\'>📍</div>';" />`;
+              
+              // ایجاد یک image element برای تست قبل از نمایش
+              const testImg = new Image();
+              testImg.onload = function() {
+                console.log('Logo image loaded successfully in sidebar');
+                logoContainer.innerHTML = `<img src="${imgUrl}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;" />`;
+              };
+              testImg.onerror = function() {
+                console.error('Failed to load logo image in sidebar:', imgUrl);
+                // تلاش با URL بدون query string
+                const imgUrl2 = `/uploads/logos/${data.logo_filename}`;
+                const testImg2 = new Image();
+                testImg2.onload = function() {
+                  logoContainer.innerHTML = `<img src="${imgUrl2}" alt="لوگو" style="max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;" />`;
+                };
+                testImg2.onerror = function() {
+                  console.error('Failed to load logo image after retry:', imgUrl2);
+                  logoContainer.innerHTML = '<div class="sidebar-logo-icon">📍</div>';
+                };
+                testImg2.src = imgUrl2;
+              };
+              testImg.src = imgUrl;
             } else {
               console.warn('Logo not found:', data.message || 'Unknown error', data);
               if (data.available_logos && data.available_logos.length > 0) {
