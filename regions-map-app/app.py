@@ -28,10 +28,16 @@ from werkzeug.utils import secure_filename
 BASE_DIR = Path(__file__).resolve().parent
 # بررسی مسیر واقعی uploads - اگر در parent directory است
 PARENT_DIR = BASE_DIR.parent
-# اگر uploads در parent directory وجود دارد، از آن استفاده کن
-if (PARENT_DIR / "uploads" / "regions" / "logos").exists():
+# بررسی مسیرهای مختلف برای uploads
+# اول: بررسی parent/uploads/uploads/regions/logos (مسیر واقعی روی سرور)
+if (PARENT_DIR / "uploads" / "uploads" / "regions" / "logos").exists():
+    UPLOAD_ROOT = PARENT_DIR / "uploads" / "uploads" / "regions"
+    LOGO_DIR = PARENT_DIR / "uploads" / "uploads" / "regions" / "logos"
+# دوم: بررسی parent/uploads/regions/logos
+elif (PARENT_DIR / "uploads" / "regions" / "logos").exists():
     UPLOAD_ROOT = PARENT_DIR / "uploads" / "regions"
     LOGO_DIR = PARENT_DIR / "uploads" / "regions" / "logos"
+# سوم: استفاده از مسیر پیش‌فرض
 else:
     UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
     LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
