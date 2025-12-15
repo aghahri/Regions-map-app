@@ -1262,7 +1262,14 @@ MANAGE_LINKS_TEMPLATE = """
         e.preventDefault();
         const formData = new FormData(this);
         const neighborhoodName = formData.get('neighborhood_name');
-        const neighborhoodId = this.querySelector('input[name="neighborhood_name"]').closest('.neighborhood-item').querySelector('.neighborhood-form input[name="feature_id"]')?.value || 'unknown';
+        
+        // پیدا کردن neighborhoodId از form action یا از feature_id در همان neighborhood-item
+        const neighborhoodItem = this.closest('.neighborhood-item');
+        const featureIdInput = neighborhoodItem ? neighborhoodItem.querySelector('.neighborhood-form input[name="feature_id"]') : null;
+        const neighborhoodId = featureIdInput ? featureIdInput.value : 'unknown';
+        
+        console.log('Uploading logo for neighborhood:', { neighborhoodName, neighborhoodId });
+        
         const statusDiv = document.getElementById('logo_status_' + neighborhoodId) || this.querySelector('.save-status');
         const submitBtn = this.querySelector('button[type="submit"]');
         
@@ -1280,6 +1287,7 @@ MANAGE_LINKS_TEMPLATE = """
           });
           
           const result = await response.json();
+          console.log('Upload result:', result);
           
           if (result.success) {
             if (statusDiv) {
@@ -1291,14 +1299,19 @@ MANAGE_LINKS_TEMPLATE = """
             
             // نمایش لوگوی جدید بدون reload صفحه
             const logoPreviewDiv = document.getElementById('logo_preview_' + neighborhoodId);
+            console.log('Looking for logo_preview div:', 'logo_preview_' + neighborhoodId, logoPreviewDiv);
+            
             if (logoPreviewDiv && result.logo_filename) {
               const imgUrl = '/uploads/logos/' + result.logo_filename;
+              console.log('Setting logo image URL:', imgUrl);
               logoPreviewDiv.innerHTML = `
                 <div style="margin-bottom: 0.5rem;">
-                  <img src="${imgUrl}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem;\\'>خطا در نمایش لوگو</div>';" />
+                  <img src="${imgUrl}?t=${Date.now()}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" onload="console.log('Logo image loaded successfully');" onerror="console.error('Failed to load logo image:', this.src); this.parentElement.parentElement.innerHTML='<div style=\\'font-size: 0.85rem; color: #d62828; margin-bottom: 0.5rem;\\'>خطا در نمایش لوگو. URL: ${imgUrl}</div>';" />
                   <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
                 </div>
               `;
+            } else {
+              console.warn('Could not find logo_preview div or logo_filename:', { logoPreviewDiv, logo_filename: result.logo_filename });
             }
             
             // پاک کردن فایل input
