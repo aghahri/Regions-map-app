@@ -43,12 +43,12 @@ HISTORY_FILE = UPLOAD_ROOT / "history.json"
 LINKS_DIR = UPLOAD_ROOT / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
-NEIGHBORHOOD_EDITS_DIR = BASE_DIR / "uploads" / "regions" / "neighborhood_edits"
+NEIGHBORHOOD_EDITS_DIR = UPLOAD_ROOT / "neighborhood_edits"
 NEIGHBORHOOD_EDITS_DIR.mkdir(parents=True, exist_ok=True)
-FEATURES_DIR = BASE_DIR / "uploads" / "regions" / "features"
+FEATURES_DIR = UPLOAD_ROOT / "features"
 FEATURES_DIR.mkdir(parents=True, exist_ok=True)
-FEATURES_INDEX_FILE = BASE_DIR / "uploads" / "regions" / "features_index.json"
-USERS_FILE = BASE_DIR / "uploads" / "regions" / "users.json"
+FEATURES_INDEX_FILE = UPLOAD_ROOT / "features_index.json"
+USERS_FILE = UPLOAD_ROOT / "users.json"
 
 ALLOWED_EXTENSIONS = {"zip", "geojson", "json"}
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "svg"}
