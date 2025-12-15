@@ -26,14 +26,22 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
+# بررسی مسیر واقعی uploads - اگر در parent directory است
+PARENT_DIR = BASE_DIR.parent
+# اگر uploads در parent directory وجود دارد، از آن استفاده کن
+if (PARENT_DIR / "uploads" / "regions" / "logos").exists():
+    UPLOAD_ROOT = PARENT_DIR / "uploads" / "regions"
+    LOGO_DIR = PARENT_DIR / "uploads" / "regions" / "logos"
+else:
+    UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
+    LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
+
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-STORAGE_DIR = BASE_DIR / "uploads" / "regions" / "storage"
+STORAGE_DIR = UPLOAD_ROOT / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-HISTORY_FILE = BASE_DIR / "uploads" / "regions" / "history.json"
-LINKS_DIR = BASE_DIR / "uploads" / "regions" / "links"
+HISTORY_FILE = UPLOAD_ROOT / "history.json"
+LINKS_DIR = UPLOAD_ROOT / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
-LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
 NEIGHBORHOOD_EDITS_DIR = BASE_DIR / "uploads" / "regions" / "neighborhood_edits"
 NEIGHBORHOOD_EDITS_DIR.mkdir(parents=True, exist_ok=True)
