@@ -26,28 +26,34 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
-# بررسی مسیر واقعی uploads - اگر در parent directory است
+# مسیر واقعی uploads روی سرور: /var/www/regions-map-app/uploads/uploads/regions
 PARENT_DIR = BASE_DIR.parent
-# بررسی مسیرهای مختلف برای uploads
-# اول: بررسی parent/uploads/uploads/regions/logos (مسیر واقعی روی سرور)
-logo_path_1 = PARENT_DIR / "uploads" / "uploads" / "regions" / "logos"
-logo_path_2 = PARENT_DIR / "uploads" / "regions" / "logos"
-logo_path_3 = BASE_DIR / "uploads" / "regions" / "logos"
 
-if logo_path_1.exists():
-    UPLOAD_ROOT = PARENT_DIR / "uploads" / "uploads" / "regions"
-    LOGO_DIR = logo_path_1
-    print(f"✅ استفاده از مسیر: {LOGO_DIR}")
-# دوم: بررسی parent/uploads/regions/logos
-elif logo_path_2.exists():
-    UPLOAD_ROOT = PARENT_DIR / "uploads" / "regions"
-    LOGO_DIR = logo_path_2
-    print(f"✅ استفاده از مسیر: {LOGO_DIR}")
-# سوم: استفاده از مسیر پیش‌فرض
+# تنظیم مستقیم مسیر uploads - اولویت با parent/uploads/uploads/regions (مسیر واقعی روی سرور)
+UPLOAD_ROOT = PARENT_DIR / "uploads" / "uploads" / "regions"
+LOGO_DIR = UPLOAD_ROOT / "logos"
+
+# اگر مسیر وجود نداشت، از مسیرهای جایگزین استفاده کن
+if not LOGO_DIR.exists():
+    # بررسی مسیرهای جایگزین
+    alt_path_1 = PARENT_DIR / "uploads" / "regions" / "logos"
+    alt_path_2 = BASE_DIR / "uploads" / "regions" / "logos"
+    
+    if alt_path_1.exists():
+        UPLOAD_ROOT = PARENT_DIR / "uploads" / "regions"
+        LOGO_DIR = alt_path_1
+        print(f"⚠️  استفاده از مسیر جایگزین 1: {LOGO_DIR}")
+    elif alt_path_2.exists():
+        UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
+        LOGO_DIR = alt_path_2
+        print(f"⚠️  استفاده از مسیر جایگزین 2: {LOGO_DIR}")
+    else:
+        # اگر هیچکدام وجود نداشت، از مسیر اصلی استفاده کن (ساخته می‌شود)
+        UPLOAD_ROOT = PARENT_DIR / "uploads" / "uploads" / "regions"
+        LOGO_DIR = UPLOAD_ROOT / "logos"
+        print(f"✅ استفاده از مسیر اصلی (ساخته می‌شود): {LOGO_DIR}")
 else:
-    UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
-    LOGO_DIR = logo_path_3
-    print(f"✅ استفاده از مسیر پیش‌فرض: {LOGO_DIR}")
+    print(f"✅ استفاده از مسیر اصلی: {LOGO_DIR}")
 
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 STORAGE_DIR = UPLOAD_ROOT / "storage"
