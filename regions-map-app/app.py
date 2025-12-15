@@ -30,17 +30,24 @@ BASE_DIR = Path(__file__).resolve().parent
 PARENT_DIR = BASE_DIR.parent
 # بررسی مسیرهای مختلف برای uploads
 # اول: بررسی parent/uploads/uploads/regions/logos (مسیر واقعی روی سرور)
-if (PARENT_DIR / "uploads" / "uploads" / "regions" / "logos").exists():
+logo_path_1 = PARENT_DIR / "uploads" / "uploads" / "regions" / "logos"
+logo_path_2 = PARENT_DIR / "uploads" / "regions" / "logos"
+logo_path_3 = BASE_DIR / "uploads" / "regions" / "logos"
+
+if logo_path_1.exists():
     UPLOAD_ROOT = PARENT_DIR / "uploads" / "uploads" / "regions"
-    LOGO_DIR = PARENT_DIR / "uploads" / "uploads" / "regions" / "logos"
+    LOGO_DIR = logo_path_1
+    print(f"✅ استفاده از مسیر: {LOGO_DIR}")
 # دوم: بررسی parent/uploads/regions/logos
-elif (PARENT_DIR / "uploads" / "regions" / "logos").exists():
+elif logo_path_2.exists():
     UPLOAD_ROOT = PARENT_DIR / "uploads" / "regions"
-    LOGO_DIR = PARENT_DIR / "uploads" / "regions" / "logos"
+    LOGO_DIR = logo_path_2
+    print(f"✅ استفاده از مسیر: {LOGO_DIR}")
 # سوم: استفاده از مسیر پیش‌فرض
 else:
     UPLOAD_ROOT = BASE_DIR / "uploads" / "regions"
-    LOGO_DIR = BASE_DIR / "uploads" / "regions" / "logos"
+    LOGO_DIR = logo_path_3
+    print(f"✅ استفاده از مسیر پیش‌فرض: {LOGO_DIR}")
 
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 STORAGE_DIR = UPLOAD_ROOT / "storage"
