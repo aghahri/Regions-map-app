@@ -1198,7 +1198,7 @@ MANAGE_LINKS_TEMPLATE = """
           <form method="post" action="/admin/neighborhoods/{{ map_id }}/upload-logo" enctype="multipart/form-data" class="logo-upload-form">
             <input type="hidden" name="neighborhood_name" value="{{ neighborhood.name }}" />
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <input type="file" name="logo" accept="image/*" required style="flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px;" />
+              <input type="file" name="logo" accept="image/*" required style="flex: 1; padding: 0.5rem; border: 1px solid #dde3ea; border-radius: 6px;" class="logo-file-input" />
               <button type="submit" class="save" style="background: #17a2b8;">آپلود لوگو</button>
             </div>
             <div class="save-status" id="logo_status_{{ neighborhood.id }}" style="margin-top: 0.5rem;"></div>
