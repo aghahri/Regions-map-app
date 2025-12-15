@@ -3532,8 +3532,18 @@ def serve_logo(filename: str):
     """سرو کردن فایل‌های لوگو - با پشتیبانی از فایل‌های قدیمی"""
     from flask import send_from_directory
     
+    # دیباگ: نمایش مسیر
+    print(f"🔍 درخواست برای لوگو: {filename}")
+    print(f"🔍 LOGO_DIR: {LOGO_DIR}")
+    print(f"🔍 LOGO_DIR.exists(): {LOGO_DIR.exists()}")
+    
     logo_path = LOGO_DIR / filename
+    print(f"🔍 logo_path: {logo_path}")
+    print(f"🔍 logo_path.exists(): {logo_path.exists()}")
+    print(f"🔍 logo_path.is_file(): {logo_path.is_file() if logo_path.exists() else False}")
+    
     if logo_path.exists() and logo_path.is_file():
+        print(f"✅ فایل پیدا شد، در حال serve کردن...")
         return send_from_directory(str(LOGO_DIR), filename)
     
     # اگر فایل پیدا نشد، برای فایل‌های قدیمی که پسوند ندارند، جستجو کنیم
