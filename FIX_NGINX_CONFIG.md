@@ -21,7 +21,7 @@ nginx config باید مطمئن شود که همه route‌ها (از جمله 
 ```nginx
 server {
     listen 80;
-    server_name iranregions.ir www.iranregions.ir;
+    server_name iranregions.com www.iranregions.com;
 
     client_max_body_size 200M;
 
