@@ -1256,6 +1256,32 @@ MANAGE_LINKS_TEMPLATE = """
       });
     });
     
+    // نمایش preview فایل قبل از آپلود
+    document.querySelectorAll('.logo-file-input').forEach(input => {
+      input.addEventListener('change', function(e) {
+        const file = this.files[0];
+        if (file) {
+          const neighborhoodItem = this.closest('.neighborhood-item');
+          const featureIdInput = neighborhoodItem ? neighborhoodItem.querySelector('.neighborhood-form input[name="feature_id"]') : null;
+          const neighborhoodId = featureIdInput ? featureIdInput.value : 'unknown';
+          const logoPreviewDiv = document.getElementById('logo_preview_' + neighborhoodId);
+          
+          if (logoPreviewDiv) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              logoPreviewDiv.innerHTML = `
+                <div style="margin-bottom: 0.5rem;">
+                  <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" />
+                  <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">پیش‌نمایش (در حال آپلود...)</div>
+                </div>
+              `;
+            };
+            reader.readAsDataURL(file);
+          }
+        }
+      });
+    });
+    
     // مدیریت فرم‌های آپلود لوگو
     document.querySelectorAll('.logo-upload-form').forEach(form => {
       form.addEventListener('submit', async function(e) {
