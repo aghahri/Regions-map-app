@@ -3419,11 +3419,26 @@ def serve_logo(filename: str):
     # بعضی فایل‌های قدیمی ممکن است پسوند نداشته باشند یا پسوندشان تغییر کرده باشد
     
     # 1. جستجو برای فایل‌هایی که پسوند در انتهای نامشان است (مثل _jpg بدون نقطه)
+    # ابتدا بررسی کنیم که آیا فایل با اضافه کردن .jpg به انتهای نام وجود دارد
+    for ext in ALLOWED_IMAGE_EXTENSIONS:
+        possible_filename = f"{filename}.{ext}"
+        possible_path = LOGO_DIR / possible_filename
+        if possible_path.exists() and possible_path.is_file():
+            return send_from_directory(str(LOGO_DIR), possible_filename)
+    
+    # اگر پیدا نشد، بررسی کنیم که آیا نام فایل به _jpg ختم می‌شود
     if '_' in filename:
         # اگر نام فایل به _jpg یا _png و غیره ختم می‌شود
         for ext in ALLOWED_IMAGE_EXTENSIONS:
             if filename.endswith(f'_{ext}'):
-                # تبدیل _jpg به .jpg
+                # تبدیل _jpg به .jpg - اما فایل واقعی ممکن است _jpg.jpg باشد
+                # پس ابتدا بررسی کنیم که آیا فایل با همان نام + .ext وجود دارد
+                possible_filename = f"{filename}.{ext}"
+                possible_path = LOGO_DIR / possible_filename
+                if possible_path.exists() and possible_path.is_file():
+                    return send_from_directory(str(LOGO_DIR), possible_filename)
+                
+                # اگر پیدا نشد، تبدیل _jpg به .jpg
                 base_name = filename.rsplit(f'_{ext}', 1)[0]
                 possible_filename = f"{base_name}.{ext}"
                 possible_path = LOGO_DIR / possible_filename
