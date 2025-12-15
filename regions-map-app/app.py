@@ -41,13 +41,11 @@ LOGO_DIR.mkdir(parents=True, exist_ok=True)
 print(f"✅ مسیر LOGO_DIR: {LOGO_DIR}")
 print(f"✅ مسیر LOGO_DIR وجود دارد: {LOGO_DIR.exists()}")
 
-UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 STORAGE_DIR = UPLOAD_ROOT / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = UPLOAD_ROOT / "history.json"
 LINKS_DIR = UPLOAD_ROOT / "links"
 LINKS_DIR.mkdir(parents=True, exist_ok=True)
-LOGO_DIR.mkdir(parents=True, exist_ok=True)
 NEIGHBORHOOD_EDITS_DIR = UPLOAD_ROOT / "neighborhood_edits"
 NEIGHBORHOOD_EDITS_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_DIR = UPLOAD_ROOT / "features"
