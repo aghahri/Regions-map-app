@@ -1185,12 +1185,16 @@ MANAGE_LINKS_TEMPLATE = """
         <!-- بخش آپلود لوگو -->
         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: bold; color: #1f4e5f;">لوگو/عکس محله:</label>
-          {% if neighborhood.logo_filename %}
-          <div style="margin-bottom: 0.5rem;">
-            <img src="/uploads/logos/{{ neighborhood.logo_filename }}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6;" />
-            <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+          <div id="logo_preview_{{ neighborhood.id }}" style="margin-bottom: 0.5rem;">
+            {% if neighborhood.logo_filename %}
+            <div style="margin-bottom: 0.5rem;">
+              <img src="/uploads/logos/{{ neighborhood.logo_filename }}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_{{ neighborhood.id }}" />
+              <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+            </div>
+            {% else %}
+            <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem;">هنوز لوگویی آپلود نشده است</div>
+            {% endif %}
           </div>
-          {% endif %}
           <form method="post" action="/admin/neighborhoods/{{ map_id }}/upload-logo" enctype="multipart/form-data" class="logo-upload-form">
             <input type="hidden" name="neighborhood_name" value="{{ neighborhood.name }}" />
             <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -1285,10 +1289,23 @@ MANAGE_LINKS_TEMPLATE = """
             submitBtn.textContent = 'آپلود لوگو';
             submitBtn.disabled = false;
             
-            // رفرش صفحه بعد از 1 ثانیه برای نمایش لوگوی جدید
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+            // نمایش لوگوی جدید بدون reload صفحه
+            const logoPreviewDiv = document.getElementById('logo_preview_' + neighborhoodId);
+            if (logoPreviewDiv && result.logo_filename) {
+              const imgUrl = '/uploads/logos/' + result.logo_filename;
+              logoPreviewDiv.innerHTML = `
+                <div style="margin-bottom: 0.5rem;">
+                  <img src="${imgUrl}" alt="لوگو" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #dee2e6; object-fit: contain; display: block;" id="logo_img_${neighborhoodId}" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem;\\'>خطا در نمایش لوگو</div>';" />
+                  <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">لوگوی فعلی</div>
+                </div>
+              `;
+            }
+            
+            // پاک کردن فایل input
+            const fileInput = this.querySelector('input[type="file"]');
+            if (fileInput) {
+              fileInput.value = '';
+            }
           } else {
             if (statusDiv) {
               statusDiv.textContent = '✗ ' + (result.error || 'خطا در آپلود');
