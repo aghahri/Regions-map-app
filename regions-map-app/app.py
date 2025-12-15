@@ -3607,12 +3607,22 @@ def serve_logo(filename: str):
     
     # 4. جستجوی فایل‌هایی که با نام فایل شروع می‌شوند (برای فایل‌های قدیمی)
     if LOGO_DIR.exists():
+        print(f"🔍 جستجوی فایل‌های مشابه با glob: {filename}*")
         for ext in ALLOWED_IMAGE_EXTENSIONS:
             # جستجو برای فایل‌هایی که با filename شروع می‌شوند
             for logo_file in LOGO_DIR.glob(f"{filename}*"):
                 if logo_file.is_file() and logo_file.suffix.lower() in [f'.{e}' for e in ALLOWED_IMAGE_EXTENSIONS]:
+                    print(f"✅ فایل مشابه پیدا شد: {logo_file.name}")
                     return send_from_directory(str(LOGO_DIR), logo_file.name)
     
+    # دیباگ: لیست فایل‌های موجود
+    if LOGO_DIR.exists():
+        all_files = list(LOGO_DIR.glob("*"))
+        print(f"❌ فایل پیدا نشد. فایل‌های موجود در LOGO_DIR ({len(all_files)} فایل):")
+        for f in sorted(all_files, key=lambda x: x.stat().st_mtime, reverse=True)[:10]:  # 10 فایل جدیدتر
+            print(f"   - {f.name} (size: {f.stat().st_size} bytes)")
+    
+    print(f"❌ فایل {filename} پیدا نشد در {LOGO_DIR}")
     return "فایل پیدا نشد", 404
 
 
