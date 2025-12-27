@@ -51,6 +51,8 @@ NEIGHBORHOOD_EDITS_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_DIR = UPLOAD_ROOT / "features"
 FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 FEATURES_INDEX_FILE = UPLOAD_ROOT / "features_index.json"
+BUSINESSES_DIR = UPLOAD_ROOT / "businesses"
+BUSINESSES_DIR.mkdir(parents=True, exist_ok=True)
 USERS_FILE = UPLOAD_ROOT / "users.json"
 
 ALLOWED_EXTENSIONS = {"zip", "geojson", "json"}
@@ -1971,8 +1973,10 @@ INDEX_TEMPLATE = """
     }).addTo(map);
 
     let mainLayer = null; // لایر اصلی محلات
+    let businessesLayer = null; // لایه کسب و کارها
     const geojsonData = {{ geojson|safe if geojson else 'null' }};
     const selectedFeaturesGeojson = {{ selected_features_geojson|safe if selected_features_geojson else '[]' }};
+    const cityName = {{ city_name|safe if city_name else 'null' }}; // نام شهر برای بارگذاری کسب و کارها
     
     // حذف تمام لایه‌های قبلی
     map.eachLayer(function(layer) {
@@ -2022,6 +2026,71 @@ INDEX_TEMPLATE = """
     if (!mainLayer) {
       // اگر نقشه خالی است، view را روی ایران نگه دار
       map.setView([32.0, 53.0], 5);
+    }
+    
+    // بارگذاری کسب و کارها
+    function loadBusinesses(cityName) {
+      if (!cityName) return;
+      
+      fetch(`/api/businesses/${cityName}`)
+        .then(response => {
+          if (!response.ok) {
+            console.log('فایل کسب و کارها پیدا نشد');
+            return null;
+          }
+          return response.json();
+        })
+        .then(businessesData => {
+          if (businessesData && businessesData.features) {
+            // حذف لایه قبلی کسب و کارها
+            if (businessesLayer) {
+              map.removeLayer(businessesLayer);
+            }
+            
+            // ایجاد لایه جدید
+            businessesLayer = L.geoJSON(businessesData, {
+              pointToLayer: function(feature, latlng) {
+                return L.circleMarker(latlng, {
+                  radius: 6,
+                  fillColor: '#ff7800',
+                  color: '#fff',
+                  weight: 2,
+                  opacity: 1,
+                  fillOpacity: 0.8
+                });
+              },
+              onEachFeature: function(feature, layer) {
+                const props = feature.properties || {};
+                const name = props.name || 'کسب و کار';
+                let popupContent = `<strong>${name}</strong><br>`;
+                
+                // اضافه کردن سایر اطلاعات
+                for (const key in props) {
+                  if (key !== 'name' && props[key]) {
+                    popupContent += `${key}: ${props[key]}<br>`;
+                  }
+                }
+                
+                layer.bindPopup(popupContent);
+              }
+            }).addTo(map);
+            
+            console.log(`✅ ${businessesData.features.length} کسب و کار بارگذاری شد`);
+          }
+        })
+        .catch(error => {
+          console.warn('خطا در بارگذاری کسب و کارها:', error);
+        });
+    }
+    
+    // بارگذاری کسب و کارها اگر نام شهر مشخص باشد
+    // می‌توان از query parameter یا از نام نقشه استخراج کرد
+    const urlParams = new URLSearchParams(window.location.search);
+    const cityParam = urlParams.get('city');
+    if (cityParam) {
+      loadBusinesses(cityParam);
+    } else if (cityName) {
+      loadBusinesses(cityName);
     }
     
     // بارگذاری عوارض به صورت خودکار غیرفعال شده است
@@ -3079,6 +3148,7 @@ def index():
     """صفحه اصلی - نمایش لیست نقشه‌ها"""
     history = load_history()
     selected_map_id = request.args.get("map_id")
+    city_name = request.args.get("city")  # نام شهر برای بارگذاری کسب و کارها
     geojson = None
     summary = None
     selected_features_geojson = []  # لیست عوارض انتخاب شده
@@ -3134,6 +3204,7 @@ def index():
         INDEX_TEMPLATE,
         history=history,
         selected_map_id=selected_map_id,
+        city_name=json.dumps(city_name) if city_name else None,
         geojson=json.dumps(geojson) if geojson else None,
         summary=summary,
         selected_features_geojson=[json.dumps(fg) for fg in selected_features_geojson] if selected_features_geojson else [],
@@ -4511,6 +4582,195 @@ def admin_manage_feature_links(map_id: str):
     except Exception as e:
         import traceback
         return f"خطا در رندر کردن صفحه: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+
+
+@app.route("/api/businesses/<city_name>", methods=["GET"])
+def get_businesses(city_name: str):
+    """دریافت GeoJSON کسب و کارهای یک شهر"""
+    business_file = BUSINESSES_DIR / f"{city_name}_businesses.json"
+    
+    if not business_file.exists():
+        return jsonify({"error": "فایل کسب و کارها پیدا نشد"}), 404
+    
+    try:
+        with open(business_file, "r", encoding="utf-8") as f:
+            geojson = json.load(f)
+        return jsonify(geojson)
+    except Exception as e:
+        return jsonify({"error": f"خطا در خواندن فایل: {str(e)}"}), 500
+
+
+@app.route("/admin/businesses/upload", methods=["GET", "POST"])
+def admin_upload_businesses():
+    """آپلود فایل کسب و کارها (RAR یا Excel)"""
+    if not session.get("username"):
+        return redirect(url_for("admin_login"))
+    
+    if not has_permission("upload"):
+        return redirect(url_for("admin_panel") + "?error=شما دسترسی آپلود ندارید")
+    
+    error = None
+    success = None
+    
+    if request.method == "POST":
+        file_obj = request.files.get("business_file")
+        city_name = request.form.get("city_name", "").strip()
+        
+        if not file_obj or not file_obj.filename:
+            error = "لطفاً یک فایل انتخاب کنید."
+        elif not city_name:
+            error = "لطفاً نام شهر را وارد کنید."
+        else:
+            try:
+                # ذخیره فایل موقت
+                temp_dir = Path(tempfile.gettempdir()) / "business_upload"
+                temp_dir.mkdir(exist_ok=True)
+                temp_file = temp_dir / secure_filename(file_obj.filename)
+                file_obj.save(str(temp_file))
+                
+                # پردازش فایل
+                if temp_file.suffix.lower() == '.rar':
+                    # استفاده از اسکریپت process_businesses.py
+                    import subprocess
+                    result = subprocess.run(
+                        ["python3", str(BASE_DIR / "process_businesses.py"), str(temp_file)],
+                        capture_output=True,
+                        text=True,
+                        cwd=str(BASE_DIR)
+                    )
+                    if result.returncode != 0:
+                        error = f"خطا در پردازش فایل: {result.stderr}"
+                    else:
+                        # تغییر نام فایل خروجی
+                        output_file = BUSINESSES_DIR / "tabriz_businesses.json"
+                        final_file = BUSINESSES_DIR / f"{city_name}_businesses.json"
+                        if output_file.exists():
+                            output_file.rename(final_file)
+                            success = f"فایل کسب و کارها با موفقیت آپلود شد: {city_name}"
+                        else:
+                            error = "فایل GeoJSON تولید نشد"
+                elif temp_file.suffix.lower() in ['.xlsx', '.xls']:
+                    # پردازش مستقیم Excel
+                    import pandas as pd
+                    from shapely.geometry import Point
+                    
+                    df = pd.read_excel(str(temp_file), engine='openpyxl')
+                    # پیدا کردن ستون‌های مختصات (این باید در process_businesses.py باشد)
+                    # برای سادگی، فرض می‌کنیم که ستون‌ها lat و lon هستند
+                    lat_col = None
+                    lon_col = None
+                    for col in df.columns:
+                        col_lower = str(col).lower()
+                        if 'lat' in col_lower or 'عرض' in col_lower:
+                            lat_col = col
+                        if 'lon' in col_lower or 'lng' in col_lower or 'طول' in col_lower:
+                            lon_col = col
+                    
+                    if not lat_col or not lon_col:
+                        error = "ستون‌های مختصات (lat/lon) پیدا نشد"
+                    else:
+                        features = []
+                        for idx, row in df.iterrows():
+                            try:
+                                lat = float(row[lat_col])
+                                lon = float(row[lon_col])
+                                if -90 <= lat <= 90 and -180 <= lon <= 180:
+                                    properties = {}
+                                    for col in df.columns:
+                                        if col not in [lat_col, lon_col]:
+                                            value = row[col]
+                                            if pd.notna(value):
+                                                properties[str(col)] = str(value) if not isinstance(value, (int, float, str)) else value
+                                    
+                                    features.append({
+                                        "type": "Feature",
+                                        "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                                        "properties": properties
+                                    })
+                            except (ValueError, KeyError):
+                                continue
+                        
+                        geojson = {"type": "FeatureCollection", "features": features}
+                        final_file = BUSINESSES_DIR / f"{city_name}_businesses.json"
+                        with open(final_file, "w", encoding="utf-8") as f:
+                            json.dump(geojson, f, ensure_ascii=False, indent=2)
+                        success = f"فایل کسب و کارها با موفقیت آپلود شد: {city_name} ({len(features)} کسب و کار)"
+                
+                # پاکسازی فایل موقت
+                if temp_file.exists():
+                    temp_file.unlink()
+                    
+            except Exception as e:
+                error = f"خطا در پردازش فایل: {str(e)}"
+                import traceback
+                print(traceback.format_exc())
+    
+    # لیست فایل‌های موجود
+    existing_files = []
+    if BUSINESSES_DIR.exists():
+        for file in BUSINESSES_DIR.glob("*_businesses.json"):
+            city = file.stem.replace("_businesses", "")
+            existing_files.append(city)
+    
+    upload_template = """
+    <!DOCTYPE html>
+    <html dir="rtl" lang="fa">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>آپلود کسب و کارها</title>
+        <style>
+            body { font-family: Tahoma, Arial; padding: 2rem; max-width: 800px; margin: 0 auto; }
+            .form-group { margin-bottom: 1rem; }
+            label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+            input[type="text"], input[type="file"] { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+            button { background: #007bff; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; }
+            button:hover { background: #0056b3; }
+            .error { color: red; padding: 1rem; background: #ffe6e6; border-radius: 4px; margin-bottom: 1rem; }
+            .success { color: green; padding: 1rem; background: #e6ffe6; border-radius: 4px; margin-bottom: 1rem; }
+            .back { background: #6c757d; margin-bottom: 1rem; }
+            .existing { margin-top: 2rem; }
+            .existing ul { list-style: none; padding: 0; }
+            .existing li { padding: 0.5rem; background: #f8f9fa; margin-bottom: 0.5rem; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <a href="/admin"><button class="back">← بازگشت به پنل ادمین</button></a>
+        <h1>آپلود کسب و کارهای محلی</h1>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="success">{{ success }}</div>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>نام شهر:</label>
+                <input type="text" name="city_name" required placeholder="مثلاً: tabriz" />
+            </div>
+            <div class="form-group">
+                <label>فایل (RAR یا Excel):</label>
+                <input type="file" name="business_file" accept=".rar,.xlsx,.xls" required />
+            </div>
+            <button type="submit">آپلود و پردازش</button>
+        </form>
+        <div class="existing">
+            <h2>فایل‌های موجود:</h2>
+            {% if existing_files %}
+            <ul>
+                {% for city in existing_files %}
+                <li>{{ city }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>هیچ فایلی آپلود نشده است.</p>
+            {% endif %}
+        </div>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(upload_template, error=error, success=success, existing_files=existing_files)
 
 
 if __name__ == "__main__":
